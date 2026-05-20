@@ -1,0 +1,45 @@
+#######################################
+# Syntax Coloring Map for PCMFlowUDP
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+RawUdpSink	KEYWORD1
+RawUdpStream	KEYWORD1
+VbanSender	KEYWORD1
+VbanReceiver	KEYWORD1
+VbanSubProtocol	KEYWORD1
+VbanSubCodec	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+begin	KEYWORD2
+end	KEYWORD2
+write	KEYWORD2
+read	KEYWORD2
+flush	KEYWORD2
+writeFrames	KEYWORD2
+readFrames	KEYWORD2
+format	KEYWORD2
+setFormat	KEYWORD2
+setStreamName	KEYWORD2
+streamName	KEYWORD2
+isReady	KEYWORD2
+isEof	KEYWORD2
+lastError	KEYWORD2
+poll	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+Audio	LITERAL1
+Service	LITERAL1
+PCM16	LITERAL1
+PCM8	LITERAL1
+MuLaw	LITERAL1
+ALaw	LITERAL1

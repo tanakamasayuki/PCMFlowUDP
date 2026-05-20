@@ -1,0 +1,26 @@
+{
+  "name": "PCMFlowUDP",
+  "version": "0.1.0",
+  "description": "UDP transport adapter for PCMFlow. Provides RawUdpSink / RawUdpStream for caller-defined payloads and VbanSender / VbanReceiver for interoperability with VB-Audio Voicemeeter and VBAN Receptor (audio sub-protocol subset; not a full VBAN implementation). Codes against the Arduino UDP base class, so it works with WiFiUDP on ESP32 and on the lang-ship:host (1.0.6+) test target. No third-party vendored code; MIT.",
+  "keywords": "audio, udp, vban, voicemeeter, streaming, network, esp32, pcmflow",
+  "authors": [
+    {
+      "name": "TANAKA Masayuki",
+      "maintainer": true
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tanakamasayuki/PCMFlowUDP.git"
+  },
+  "license": "MIT",
+  "frameworks": "arduino",
+  "platforms": "*",
+  "headers": "PCMFlowUDP.h",
+  "dependencies": [
+    {
+      "name": "PCMFlow",
+      "owner": "tanakamasayuki"
+    }
+  ]
+}
