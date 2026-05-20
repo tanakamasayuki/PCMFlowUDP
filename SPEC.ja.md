@@ -11,7 +11,7 @@ PCMFlow ファミリー初の **非コーデックメンバー** です。コー
 サポートするキャリアモードは 2 つ:
 
 - **RAW UDP** — 呼び出し側が渡したバイト列(コーデック後のバイトでも素の PCM でも可)を UDP datagram でそのまま送る。線上のフレーミングは UDP データグラム境界のみ。最もシンプルで最小オーバーヘッド。
-- **VBAN 互換** — [VBAN プロトコル](https://vb-audio.com/Voicemeeter/vban.htm)(Audio サブプロトコル + Service サブプロトコルの ping/identification)を実装。VB-Audio 社の *VBAN Receptor* / *Voicemeeter* など、PC 上の VBAN 対応ツールと相互運用できる。
+- **VBAN 互換サブセット** — [VBAN プロトコル](https://vb-audio.com/Voicemeeter/vban.htm) の **サブセット** を実装し、VB-Audio 社の *VBAN Receptor* / *Voicemeeter* など、PC 上の VBAN 対応ツールと相互運用する。具体的には **Audio サブプロトコル** (PCM ペイロード) と **Service サブプロトコルの最小部分** (ping / identification) のみ。**フル VBAN 実装ではない** — MIDI / Serial / Service サブタイプの大半は対象外(完全な対応表は §6 参照)。本書中の「VBAN」は線上プロトコルを識別するための記述的な使用で、商標注記は §14 を参照。
 
 担当範囲:
 
@@ -51,11 +51,13 @@ PCMFlowUDP は Arduino 標準の `UDP` 抽象基底に対してコーディン�
 
 | 区分 | 例 |
 |---|---|
-| **メインターゲット** | ESP32 ファミリ (`WiFiUDP` / `EthernetUDP`)、host (Linux テスト shim、§10 参照) |
+| **メインターゲット** | ESP32 ファミリ (`WiFiUDP` / `EthernetUDP`)、host (`lang-ship:host` 1.0.6+ が `WiFiUDP` / `IPAddress` を提供、§10 参照) |
 | **ベストエフォート** | Arduino UNO R4 WiFi (`WiFiS3::WiFiUDP`)、MKR WiFi 1010 / Nano 33 IoT (`WiFiNINA::WiFiUDP`)、Raspberry Pi Pico W (arduino-pico)、Teensy 4.1 (`NativeEthernet` / `QNEthernet`)、Portenta H7、任意のボード + W5500/ENC28J60 シールド (`EthernetUDP`) |
 | **対象外** | 8bit AVR(VBAN フレームに RAM 不足)、nRF52840 BLE 専用ボード(IP スタック無し) |
 
 「ベストエフォート」は、コンパイル・実行できる想定だがメンテナが動作確認はしない、という意味。PR 歓迎。
+
+**マルチキャストは非対応**。host プラットフォームの `UDP::beginMulticast()` は Windows 互換性の都合で意図的に no-op となっているため、PCMFlowUDP もどのプラットフォームでもマルチキャストに依存しない。ディスカバリや VBAN 風 fan-out は **ブロードキャスト** (`IPAddress(255,255,255,255)`) で行う。
 
 ## 5. 公開 API
 
@@ -113,7 +115,7 @@ Service サブプロトコル (ping / identification) は内部処理: `VbanRece
 
 ## 6. VBAN プロトコルの対応範囲
 
-PCMFlowUDP は **VBAN Receptor / Voicemeeter との相互運用に必要な部分** のみ実装し、フル標準は追わない:
+PCMFlowUDP は **VBAN のサブセット** のみを実装する — VBAN 対応ツールとの音声送受信に必要な部分だけ。**フル VBAN スタックではない**。具体的には:
 
 | VBAN サブプロトコル | ステータス |
 |---|---|
@@ -168,8 +170,7 @@ PCMFlowUDP/
 │  ├─ raw_loopback/          # host のみ、同一プロセスの送信 → 受信
 │  ├─ vban_header/           # 既知入力に対する byte-exact ヘッダエンコード
 │  ├─ vban_loopback/         # PCM の VBAN エンコード/デコード往復
-│  ├─ vban_interop/          # VBAN Receptor 実キャプチャ → デコーダ
-│  └─ host_udp/              # host 側 UDP / IPAddress shim (vendoring)
+│  └─ vban_interop/          # VBAN Receptor 実キャプチャ → デコーダ
 ├─ doc/
 │  └─ sibling_library_brief.md
 ├─ tools/
@@ -182,7 +183,7 @@ PCMFlowUDP/
 
 **プロトコル本体は無し**。VBAN の線上フォーマットは VB-Audio が公開しており、二進ヘッダ配置のみが normative。PCMFlowUDP は公開仕様に基づいて VBAN パケット組立・解析を自前実装し、第三者コードは流用しない。
 
-**テスト用に 1 つだけ vendor**: `lang-ship:host` テスト用の host 側 UDP / IPAddress shim (§10 参照)。Arduino ライブラリ本体には同梱しないよう `tests/host_udp/` に配置する。
+**host 側の shim も vendor しない**。`lang-ship:host` Arduino core (1.0.6+) が Berkeley socket ベースの `WiFiUDP` / `IPAddress` を提供しており、ESP32 ビルドと API 互換。PCMFlowUDP は両ターゲットで単に `#include <WiFiUdp.h>` するだけで済む。
 
 ライセンス整合性: 配布されるライブラリ本体 (`src/`) は **MIT、単一著者、第三者帰属表示不要**。
 
@@ -204,7 +205,7 @@ PCMFlowUDP 固有のテスト設計:
 | `vban_loopback/` | PCM → VBAN エンコード → VBAN デコード → PCM | host: 上と同じ要領。RAW PCM ペイロードは bit-exact、μ-law / A-law ペイロードは ±量子化誤差 |
 | `vban_interop/` | VBAN Receptor / Voicemeeter の実キャプチャを解析 | 静的 `.bin` fixture でサンプル値とメタデータを assert |
 
-**`lang-ship:host` プロファイルは Arduino 風の `UDP` / `IPAddress` を必要とする** (実 WiFi スタックがないため)。これらは配布ライブラリには含めず、`tests/host_udp/` に置き、別途開発する。shim に求める API は [HOST_UDP_API_REQUEST.md](HOST_UDP_API_REQUEST.md) (納品後に削除する一時文書) に整理してある。
+**`lang-ship:host` Arduino core (1.0.6+) が Berkeley socket ベースの `WiFiUDP` / `IPAddress` を提供** し、ESP32 と API 互換になっている。host テストもデバイス向けスケッチと同じ `#include <WiFiUdp.h>` でそのまま動くので、本リポ内に shim / vendor は不要。テストの `sketch.yaml` は `platform: lang-ship:host (1.0.6)` 以降を指定する。
 
 ## 11. バージョニング
 
@@ -217,7 +218,7 @@ SemVer (`major.minor.patch`)、`library.properties` / `library.json` / `src/pcmf
 - **RTP-over-UDP** (RFC 3550) — VoIP / WebRTC との相互運用の標準。具体的要望があったら検討
 - **VBAN MIDI / Serial / 他の Service サブタイプ** — 音楽コア部分ではない
 - **VBAN の Opus / AAC サブコーデック** — コーデック兄弟側の準備も必要。PCMFlowOpus が安定してから再検討
-- **`UDP` 基底経由の `beginMulticast` を超えるマルチキャストグループ join** — VBAN には不要
+- **マルチキャスト** — 追加しない。host Arduino core が `beginMulticast()` を提供しない (Windows 互換性の都合) ため、プラットフォーム間で挙動を揃える方針として PCMFlowUDP もマルチキャストに依存しない。VBAN の用途はブロードキャストで足りる
 - **受信側内蔵のジッタバッファ / PLC** — PCMFlow のリングバッファが数十 ms のジッタは吸収する。具体的な dropout 報告が出たら再検討
 
 ## 13. 未決事項
@@ -229,6 +230,8 @@ SemVer (`major.minor.patch`)、`library.properties` / `library.json` / `src/pcmf
 - エラー通知スタイル — 戻り値 enum vs `lastError()` アクセサ
 - 「想定外ストリーム名のパケット到着」の通知方法 (黙って捨てる / カウント / コールバック)
 
-## 14. ライセンス
+## 14. ライセンスと商標
 
-PCMFlowUDP: **MIT** ([LICENSE](LICENSE))。`src/` に vendoring した第三者コード無し。`tests/host_udp/` 配下の host 側 shim も MIT (§9 / §10 参照)。
+PCMFlowUDP: **MIT** ([LICENSE](LICENSE))。本リポ内には vendoring した第三者コードを一切含まない (`src/` は VBAN 公開仕様をベースに手書き、host 側 UDP は `lang-ship:host` Arduino core が外部から提供。§9 / §10 参照)。
+
+**商標注記**。VBAN は **VB-Audio Software** が開発・公開しているプロトコル名。本ライブラリ中の「VBAN」表記(`VbanSender` / `VbanReceiver` などのクラス名を含む)は、本ライブラリが部分実装している線上プロトコルを識別するための **記述的・指示的(nominative)用法** であり、PCMFlowUDP は **VB-Audio Software と提携・推薦・後援関係にない**。また、本ライブラリは VBAN 仕様の **サブセットのみ** を対応する(§6)。本書中に出てくる Voicemeeter / VBAN Receptor 等の名称は、各権利者の商標。

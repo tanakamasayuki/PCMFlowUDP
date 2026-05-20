@@ -11,7 +11,7 @@ It is the **first non-codec member** of the PCMFlow family. Unlike the codec sib
 Two carrier modes are supported:
 
 - **RAW UDP** — payload is whatever the caller hands in (post-codec bytes, or raw PCM). No framing on the wire beyond UDP datagram boundaries. The simplest mode and the lowest-overhead bridge between PCMFlow and the network.
-- **VBAN-compatible** — implements the [VBAN protocol](https://vb-audio.com/Voicemeeter/vban.htm) (Audio sub-protocol + Service sub-protocol for ping/identification). Interoperates with VB-Audio's *VBAN Receptor*, *Voicemeeter*, and other VBAN-compatible tools running on a PC.
+- **VBAN-interoperable subset** — implements a **subset of the [VBAN protocol](https://vb-audio.com/Voicemeeter/vban.htm)** sufficient to interoperate with VB-Audio's *VBAN Receptor*, *Voicemeeter*, and other VBAN-aware tools. Concretely: the **Audio sub-protocol** (PCM payloads) and a minimal **Service sub-protocol** (ping / identification). This is **not a full VBAN implementation** — MIDI, Serial, and most Service sub-types are out of scope (see §6 for the complete matrix). "VBAN" is used here in a descriptive sense to name the wire protocol; see §14 for the trademark notice.
 
 Responsibility:
 
@@ -51,11 +51,13 @@ PCMFlowUDP codes against the Arduino `UDP` abstract base class, so any board tha
 
 | Class | Examples |
 |---|---|
-| **Primary** | ESP32 family (`WiFiUDP` / `EthernetUDP`), host (Linux test shim — see §10) |
+| **Primary** | ESP32 family (`WiFiUDP` / `EthernetUDP`), host (`lang-ship:host` 1.0.6+ provides `WiFiUDP` / `IPAddress` — see §10) |
 | **Best-effort** | Arduino UNO R4 WiFi (`WiFiS3::WiFiUDP`), MKR WiFi 1010 / Nano 33 IoT (`WiFiNINA::WiFiUDP`), Raspberry Pi Pico W (arduino-pico), Teensy 4.1 (`NativeEthernet` / `QNEthernet`), Portenta H7, any board + W5500/ENC28J60 shield (`EthernetUDP`) |
 | **Out of scope** | 8-bit AVR boards (insufficient RAM for VBAN frames), nRF52840 BLE-only boards (no IP stack) |
 
 "Best-effort" means PCMFlowUDP is expected to compile and run, but the maintainer does not test on these targets. PRs welcome.
+
+**Multicast is not supported.** The host platform's `UDP::beginMulticast()` is intentionally a no-op for Windows-portability reasons, so PCMFlowUDP does not depend on multicast on any platform. Discovery and VBAN-style fan-out use **broadcast** (`IPAddress(255,255,255,255)`) instead.
 
 ## 5. Public API
 
@@ -113,7 +115,7 @@ Detailed signatures TBD in implementation. Open design questions tracked in §"O
 
 ## 6. VBAN protocol scope
 
-PCMFlowUDP implements the **portions of VBAN needed for interoperability with VBAN Receptor and Voicemeeter**, not the full standard. Specifically:
+PCMFlowUDP implements a **subset of VBAN** — only the portions needed to send and receive audio with VBAN-aware tools. It is **not a full VBAN stack**. Specifically:
 
 | VBAN sub-protocol | Status |
 |---|---|
@@ -168,8 +170,7 @@ PCMFlowUDP/
 │  ├─ raw_loopback/          # host-only, UDP sender → receiver same process
 │  ├─ vban_header/           # byte-exact header encoding for known inputs
 │  ├─ vban_loopback/         # round-trip PCM via VBAN encoder/decoder
-│  ├─ vban_interop/          # captured VBAN Receptor traces → decoder
-│  └─ host_udp/              # host-side UDP / IPAddress shim (vendored)
+│  └─ vban_interop/          # captured VBAN Receptor traces → decoder
 ├─ doc/
 │  └─ sibling_library_brief.md
 ├─ tools/
@@ -182,7 +183,7 @@ PCMFlowUDP/
 
 **None for the protocol itself.** VBAN's wire format is publicly documented by VB-Audio; only the binary header layout is normative. PCMFlowUDP implements VBAN packet construction and parsing from the published specification, without reusing third-party code.
 
-**One vendored item for testing:** the host-side UDP / IPAddress shim used by `lang-ship:host` tests (see §10). Lives under `tests/host_udp/` so it does not ship with the Arduino library.
+**No host-side shim is vendored** either: the `lang-ship:host` Arduino core (1.0.6+) provides a Berkeley-sockets-backed `WiFiUDP` / `IPAddress` implementation that is API-compatible with the ESP32 build. PCMFlowUDP simply `#include <WiFiUdp.h>` on both targets.
 
 License hygiene: the shipped library (`src/`) is **MIT, single-author, no third-party attribution required**.
 
@@ -204,7 +205,7 @@ PCMFlowUDP-specific test design:
 | `vban_loopback/` | PCM → VBAN encode → VBAN decode → PCM | host: same as above; assert near-exact PCM (RAW PCM payload is bit-exact, μ-law / A-law payload uses ±quantization tolerance) |
 | `vban_interop/` | parse real captures from VBAN Receptor / Voicemeeter | static `.bin` fixtures; assert audio samples and metadata |
 
-**The `lang-ship:host` profile needs Arduino-style `UDP` and `IPAddress` classes** (no real WiFi stack). These are not part of the shipped library; they live under `tests/host_udp/` and are developed as a separate effort. The shim's required API is captured in [HOST_UDP_API_REQUEST.md](HOST_UDP_API_REQUEST.md) (temporary document, removed once delivered).
+**The `lang-ship:host` Arduino core (1.0.6+) ships a Berkeley-sockets-backed `WiFiUDP` / `IPAddress`** that matches the ESP32 API surface, so host tests use the same `#include <WiFiUdp.h>` as device sketches — no shim or vendoring needed inside this repo. Tests pin `platform: lang-ship:host (1.0.6)` or newer in `sketch.yaml`.
 
 ## 11. Versioning
 
@@ -217,7 +218,7 @@ Captured here so they aren't lost; not in v0.1.x:
 - **RTP-over-UDP** (RFC 3550). Standard for VoIP / WebRTC interop. Defer until a concrete user request appears.
 - **VBAN MIDI / Serial / additional Service subtypes**. Not music-related core.
 - **VBAN with Opus / AAC sub-codecs**. Requires a codec sibling at the same time; revisit after PCMFlowOpus stabilizes.
-- **Multicast group join** beyond the basic `beginMulticast` exposed by `UDP`. Not needed for VBAN.
+- **Multicast.** Will not be added: the host Arduino core does not support `beginMulticast()` (Windows-portability constraint), and PCMFlowUDP keeps a single behavior across platforms. Broadcast covers VBAN's needs.
 - **Jitter buffer / PLC inside the receiver**. PCMFlow's ring buffer absorbs ~10s of ms of jitter; if a user reports specific dropouts, revisit.
 
 ## 13. Open questions
@@ -229,6 +230,8 @@ To be resolved during implementation, surfaced here so they aren't forgotten:
 - Error reporting style — return code enum vs. `lastError()` accessor.
 - How to surface "packet arrived from unexpected stream name" (drop silently, count, or callback).
 
-## 14. License
+## 14. License & trademarks
 
-PCMFlowUDP: **MIT** ([LICENSE](LICENSE)). No vendored third-party code in `src/`; the host-side test shim under `tests/host_udp/` is also MIT (see §9 / §10).
+PCMFlowUDP: **MIT** ([LICENSE](LICENSE)). No vendored third-party code anywhere in this repo (`src/` is hand-written from the VBAN public specification; host-side UDP is provided externally by the `lang-ship:host` Arduino core, see §9 / §10).
+
+**Trademark notice.** VBAN is a protocol developed and published by **VB-Audio Software**. The name "VBAN" — including its appearance in class names such as `VbanSender` / `VbanReceiver` — is used here in a **descriptive / nominative sense** to identify the wire protocol this library partially implements. PCMFlowUDP is **not affiliated with, endorsed by, or sponsored by VB-Audio Software**, and only a subset of the VBAN specification is supported (§6). Other product and company names mentioned (Voicemeeter, VBAN Receptor) are trademarks of their respective owners.
