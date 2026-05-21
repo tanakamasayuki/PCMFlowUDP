@@ -75,8 +75,8 @@ Four classes, organized as two carrier types × two directions:
 All four classes take a `UDP&` reference (the user's `WiFiUDP` instance) and configuration:
 
 ```cpp
-WiFiUDP wifi;
-VbanSender sender(wifi);
+WiFiUDP udp;
+VbanSender sender(udp);
 sender.begin(IPAddress(192,168,1,100), 6980, "Stream1");
 sender.setFormat({16000, 1, 16});  // 16 kHz mono 16-bit
 ```
@@ -84,8 +84,8 @@ sender.setFormat({16000, 1, 16});  // 16 kHz mono 16-bit
 Receivers bind a local port and (optionally) filter by stream name:
 
 ```cpp
-WiFiUDP wifi;
-VbanReceiver recv(wifi);
+WiFiUDP udp;
+VbanReceiver recv(udp);
 recv.begin(6980, "Stream1");
 ```
 

@@ -51,12 +51,18 @@ ESP32 がマイクから収録し、Windows PC 上の VBAN Receptor に流す。
 #include <PCMFlow.h>
 #include <PCMFlowUDP.h>
 
-WiFiUDP wifi;
-VbanSender sender(wifi);
+WiFiUDP udp;
+VbanSender sender(udp);
 
 void setup() {
     WiFi.begin("ssid", "passphrase");
     while (WiFi.status() != WL_CONNECTED) delay(100);
+
+    // Arduino UDP の規約: 送受信前に udp.begin() を必ず一度呼ぶ。
+    // EthernetUDP / WiFiNINA / WiFiS3 / lang-ship:host コア では必須。
+    // ESP32 の WiFiUDP は寛容だが、明示呼び出しの方が portable。
+    // 送信のみのときは 0 を渡してエフェメラルポートに bind する。
+    udp.begin(0);
 
     sender.begin(IPAddress(192,168,1,100), 6980, "ESP32-Mic");
     sender.setFormat({16000, 1, 16});  // 16 kHz モノラル 16-bit

@@ -75,8 +75,8 @@ PCMFlowUDP は Arduino 標準の `UDP` 抽象基底に対してコーディン�
 4 クラスとも `UDP&` 参照(利用者の `WiFiUDP` インスタンス)と設定を受け取る:
 
 ```cpp
-WiFiUDP wifi;
-VbanSender sender(wifi);
+WiFiUDP udp;
+VbanSender sender(udp);
 sender.begin(IPAddress(192,168,1,100), 6980, "Stream1");
 sender.setFormat({16000, 1, 16});  // 16 kHz mono 16-bit
 ```
@@ -84,8 +84,8 @@ sender.setFormat({16000, 1, 16});  // 16 kHz mono 16-bit
 受信側はローカル port を bind し、必要ならストリーム名でフィルタ:
 
 ```cpp
-WiFiUDP wifi;
-VbanReceiver recv(wifi);
+WiFiUDP udp;
+VbanReceiver recv(udp);
 recv.begin(6980, "Stream1");
 ```
 

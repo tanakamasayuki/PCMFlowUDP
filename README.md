@@ -51,12 +51,18 @@ ESP32 captures from a microphone and streams to VBAN Receptor running on a Windo
 #include <PCMFlow.h>
 #include <PCMFlowUDP.h>
 
-WiFiUDP wifi;
-VbanSender sender(wifi);
+WiFiUDP udp;
+VbanSender sender(udp);
 
 void setup() {
     WiFi.begin("ssid", "passphrase");
     while (WiFi.status() != WL_CONNECTED) delay(100);
+
+    // Arduino UDP convention: call udp.begin() once before any send/recv.
+    // Required on EthernetUDP, WiFiNINA, WiFiS3, and the lang-ship:host
+    // core; ESP32's WiFiUDP is lenient but the explicit call is portable.
+    // Use port 0 for an ephemeral local binding when sending only.
+    udp.begin(0);
 
     sender.begin(IPAddress(192,168,1,100), 6980, "ESP32-Mic");
     sender.setFormat({16000, 1, 16});  // 16 kHz mono 16-bit

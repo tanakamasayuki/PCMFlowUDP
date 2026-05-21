@@ -26,14 +26,14 @@ static const char *kWifiPass = "your-passphrase";
 // VBAN destination — replace with the LAN IP of the PC running
 // Voicemeeter / VBAN Receptor, or use 255.255.255.255 for broadcast.
 static const IPAddress kDestIp(192, 168, 1, 100);
-static const uint16_t kDestPort = 6980;            // VBAN default
-static const char *kStreamName = "ESP32-Mic";      // shown in VBAN Receptor
+static const uint16_t kDestPort = 6980;       // VBAN default
+static const char *kStreamName = "ESP32-Mic"; // shown in VBAN Receptor
 
 static const uint32_t kSampleRate = 16000;
-static const size_t kFramesPerChunk = 256;         // 16 ms at 16 kHz
+static const size_t kFramesPerChunk = 256; // 16 ms at 16 kHz
 
-WiFiUDP g_wifi;
-VbanSender g_sender(g_wifi);
+WiFiUDP g_udp;
+VbanSender g_sender(g_udp);
 
 void setup()
 {
@@ -50,6 +50,17 @@ void setup()
     }
     Serial.print("\nLocal IP: ");
     Serial.println(WiFi.localIP());
+
+    // Bind an ephemeral local UDP socket before sending. ESP32's
+    // WiFiUDP opens lazily, but EthernetUDP / WiFiNINA / WiFiS3 /
+    // lang-ship:host all require this explicit call — writing it
+    // unconditionally keeps the sketch portable across cores.
+    if (g_udp.begin(0) != 1)
+    {
+        Serial.println("WiFiUDP.begin failed");
+        while (true)
+            delay(1000);
+    }
 
     if (!g_sender.begin(kDestIp, kDestPort, kStreamName))
     {
