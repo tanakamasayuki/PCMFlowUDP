@@ -65,6 +65,10 @@ RawUdpStream g_stream(g_rxUdp);
 
 static void test_loopback()
 {
+    // The TX-side UDP needs an ephemeral local binding so sendto() has
+    // a source socket. Matches Arduino's documented usage of WiFiUDP
+    // (begin() before any beginPacket/endPacket).
+    EXPECT_TRUE("tx/begin", g_txUdp.begin(0) == 1);
     EXPECT_TRUE("stream/begin", g_stream.begin(kPort));
     EXPECT_TRUE("sink/begin", g_sink.begin(IPAddress(127, 0, 0, 1), kPort));
 

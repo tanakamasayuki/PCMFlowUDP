@@ -40,8 +40,12 @@ public:
     RawUdpSink(const RawUdpSink &) = delete;
     RawUdpSink &operator=(const RawUdpSink &) = delete;
 
-    // Open the sink. Does not bind a local port (this is send-only); the
-    // underlying UDP object must already be usable for sendto().
+    // Open the sink. Does not bind a local port itself; the caller must
+    // have called `udp.begin(port)` (any port, 0 is fine for ephemeral)
+    // on the underlying UDP object beforehand. This matches Arduino's
+    // documented WiFiUDP usage and is required by the host Arduino
+    // core's WiFiUDP implementation, which will refuse to sendto()
+    // until a local socket exists.
     bool begin(IPAddress destIp, uint16_t destPort);
     void end();
 
