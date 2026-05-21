@@ -1,10 +1,13 @@
 #include "RawUdpStream.h"
 
-// PCMFlowUDP :: RawUdpStream implementation (skeleton).
+// PCMFlowUDP :: RawUdpStream implementation.
 //
-// TODO: complete implementation against the SPEC. The current bodies
-// are placeholders so the library compiles while the public surface is
-// being settled.
+// One datagram is held at a time inside the underlying `UDP` instance
+// (Arduino's WiFiUDP / EthernetUDP all keep the most recent packet in
+// an internal buffer between parsePacket() and the next read()).
+// poll() advances to the next datagram and captures the sender
+// address; read() copies from the currently-held packet and
+// auto-polls if the previous packet has been fully consumed.
 
 bool RawUdpStream::begin(uint16_t localPort)
 {
@@ -29,14 +32,26 @@ void RawUdpStream::end()
 
 bool RawUdpStream::poll()
 {
-    // TODO: call udp_.parsePacket(); if > 0, capture remoteIP/Port and
-    // make the bytes available to read().
-    return false;
+    if (!ready_)
+        return false;
+    const int n = udp_.parsePacket();
+    if (n <= 0)
+        return false;
+    remoteIp_ = udp_.remoteIP();
+    remotePort_ = udp_.remotePort();
+    return true;
 }
 
-size_t RawUdpStream::read(void * /*dst*/, size_t /*count*/)
+size_t RawUdpStream::read(void *dst, size_t count)
 {
-    // TODO: pull from the currently-held datagram; auto-poll() at the
-    // start if no datagram is held.
-    return 0;
+    if (!ready_ || dst == nullptr || count == 0)
+        return 0;
+
+    if (udp_.available() <= 0)
+    {
+        if (!poll())
+            return 0;
+    }
+    const int got = udp_.read(static_cast<unsigned char *>(dst), count);
+    return (got > 0) ? static_cast<size_t>(got) : 0;
 }
