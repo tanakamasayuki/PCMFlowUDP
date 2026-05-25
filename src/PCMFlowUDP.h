@@ -23,6 +23,7 @@
 #include "pcmflowudp_version.h"
 
 #include "VbanProtocol.h"
+#include "RtpProtocol.h"
 #include "RawUdpSink.h"
 #include "RawUdpStream.h"
 #include "VbanSender.h"
