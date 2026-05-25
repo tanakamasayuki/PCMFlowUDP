@@ -17,10 +17,15 @@
 #include <string.h>
 
 using pcmflowudp::encodeAudioHeader;
+using pcmflowudp::encodeServiceHeader;
 using pcmflowudp::kVbanHeaderBytes;
+using pcmflowudp::kVbanServiceIdentification;
+using pcmflowudp::kVbanServiceReplyFlag;
 using pcmflowudp::parseAudioHeader;
+using pcmflowudp::parseServiceHeader;
 using pcmflowudp::VbanAudioHeader;
 using pcmflowudp::VbanParseResult;
+using pcmflowudp::VbanServiceHeader;
 using pcmflowudp::VbanSubCodec;
 
 static int g_pass = 0;
@@ -212,6 +217,97 @@ static void test_encode_errors()
     EXPECT_TRUE("err/null-out", !encodeAudioHeader(h, nullptr));
 }
 
+// VBAN Service-sub-protocol reference packet (identification request).
+//   serviceFunction = 0 (Identification)
+//   serviceFlags    = 0 (request, no reply bit)
+//   streamName      = "VBAN-Service"
+//   frameCounter    = 0xCAFEBABE
+static const uint8_t kServiceReference[kVbanHeaderBytes] = {
+    'V',
+    'B',
+    'A',
+    'N',  // [0..3]
+    0x60, // [4]  Service | func=0
+    0x00, // [5]  flags = request
+    0x00, // [6]
+    0x00, // [7]
+    'V',
+    'B',
+    'A',
+    'N',
+    '-',
+    'S',
+    'e',
+    'r',
+    'v',
+    'i',
+    'c',
+    'e', // [8..19]
+    0x00,
+    0x00,
+    0x00,
+    0x00, // [20..23]
+    0xBE,
+    0xBA,
+    0xFE,
+    0xCA, // [24..27] LE 0xCAFEBABE
+};
+
+static void test_service_encode_byte_exact()
+{
+    VbanServiceHeader h{};
+    h.serviceFunction = kVbanServiceIdentification; // 0x00
+    h.serviceFlags = 0;
+    strncpy(h.streamName, "VBAN-Service", pcmflowudp::kVbanStreamNameBytes);
+    h.frameCounter = 0xCAFEBABE;
+
+    uint8_t out[kVbanHeaderBytes] = {0};
+    EXPECT_TRUE("svc/encode-ok", encodeServiceHeader(h, out));
+    for (size_t i = 0; i < kVbanHeaderBytes; ++i)
+    {
+        char name[24];
+        snprintf(name, sizeof(name), "svc/byte%02u", (unsigned)i);
+        EXPECT_EQ(name, (long)kServiceReference[i], (long)out[i]);
+    }
+}
+
+static void test_service_parse()
+{
+    VbanServiceHeader h{};
+    EXPECT_EQ("svc/parse-ok",
+              (long)VbanParseResult::Ok,
+              (long)parseServiceHeader(kServiceReference, kVbanHeaderBytes, h));
+    EXPECT_EQ("svc/parse-func", 0L, (long)h.serviceFunction);
+    EXPECT_EQ("svc/parse-flags", 0L, (long)h.serviceFlags);
+    EXPECT_TRUE("svc/parse-is-request", !h.isReply());
+    EXPECT_EQ("svc/parse-frameCnt", 0xCAFEBABEL, (long)h.frameCounter);
+    EXPECT_TRUE("svc/parse-name", strcmp(h.streamName, "VBAN-Service") == 0);
+
+    // Audio packet must not be misparsed as Service.
+    EXPECT_EQ("svc/not-service",
+              (long)VbanParseResult::NotService,
+              (long)parseServiceHeader(kReference, kVbanHeaderBytes, h));
+}
+
+static void test_service_reply_flag()
+{
+    VbanServiceHeader h{};
+    h.serviceFunction = kVbanServiceIdentification;
+    h.serviceFlags = kVbanServiceReplyFlag; // 0x80
+    strncpy(h.streamName, "Reply", pcmflowudp::kVbanStreamNameBytes);
+
+    uint8_t buf[kVbanHeaderBytes] = {0};
+    EXPECT_TRUE("svc/reply-encode", encodeServiceHeader(h, buf));
+    EXPECT_EQ("svc/reply-byte4", 0x60L, (long)buf[4]);
+    EXPECT_EQ("svc/reply-byte5", 0x80L, (long)buf[5]);
+
+    VbanServiceHeader dst{};
+    EXPECT_EQ("svc/reply-parse",
+              (long)VbanParseResult::Ok,
+              (long)parseServiceHeader(buf, kVbanHeaderBytes, dst));
+    EXPECT_TRUE("svc/reply-is-reply", dst.isReply());
+}
+
 void setup()
 {
     Serial.begin(115200);
@@ -222,6 +318,9 @@ void setup()
     test_round_trip();
     test_parse_errors();
     test_encode_errors();
+    test_service_encode_byte_exact();
+    test_service_parse();
+    test_service_reply_flag();
 
     Serial.print("TEST done ");
     Serial.print(g_pass);

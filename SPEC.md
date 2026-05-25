@@ -122,7 +122,7 @@ PCMFlowUDP implements a **subset of VBAN** — only the portions needed to send 
 | Audio (0x00) | **Implemented** — PCM 16-bit LE primary; μ-law / A-law as sub-codec selectable. Other PCM bit-depths (8 / 24 / 32 / float) are deferred. |
 | Serial (0x20) | Not implemented |
 | MIDI (0x40) | Not implemented |
-| Service (0x60) | **Implemented (ping + identification only)** — enough to appear in VBAN Receptor's source list and respond to discovery. Other Service sub-types are deferred. |
+| Service (0x60) | **Header detection + user callback** — `parseServiceHeader()` and a `VbanReceiver::setServiceCallback()` API let the caller observe / respond to Service packets. The responder *payload* format is intentionally not implemented in v0.1.x: VB-Audio does not publish a normative payload spec, and reverse-engineering from GPL sources would conflict with this library's clean-room MIT policy. Users wanting "appear in VBAN Receptor's discovery list" can implement the responder out-of-tree against their own packet captures. |
 
 Sample rates: VBAN's canonical 21-entry table is supported on TX; RX accepts any rate the header declares but the audio path is configured at `begin()` time, so mismatches are surfaced via an error code rather than runtime resampling. (Use PCMFlow's resampler upstream if needed.)
 
@@ -217,6 +217,7 @@ Captured here so they aren't lost; not in v0.1.x:
 
 - **RTP-over-UDP** (RFC 3550). Standard for VoIP / WebRTC interop. Defer until a concrete user request appears.
 - **VBAN MIDI / Serial / additional Service subtypes**. Not music-related core.
+- **Built-in VBAN Service responder** (payload-level): needs verified packet captures against current VB-Audio tools, plus a clean-room interpretation of the identification reply structure. The header-detection + callback API in v0.1.x lets users implement responders out-of-tree until then.
 - **VBAN with Opus / AAC sub-codecs**. Requires a codec sibling at the same time; revisit after PCMFlowOpus stabilizes.
 - **Multicast.** Will not be added: the host Arduino core does not support `beginMulticast()` (Windows-portability constraint), and PCMFlowUDP keeps a single behavior across platforms. Broadcast covers VBAN's needs.
 - **Jitter buffer / PLC inside the receiver**. PCMFlow's ring buffer absorbs ~10s of ms of jitter; if a user reports specific dropouts, revisit.

@@ -103,13 +103,38 @@ bool VbanReceiver::poll()
     if (n <= 0)
         return false;
 
-    uint8_t buf[pcmflowudp::kVbanMaxPacketBytes];
+    static uint8_t buf[pcmflowudp::kVbanMaxPacketBytes];
     const size_t toRead = (static_cast<size_t>(n) < sizeof(buf))
                               ? static_cast<size_t>(n)
                               : sizeof(buf);
     const int got = udp_.read(buf, toRead);
     if (got < static_cast<int>(pcmflowudp::kVbanHeaderBytes))
         return false;
+
+    // Sub-protocol selector lives in byte 4 high 3 bits. Service packets
+    // are dispatched to the user callback (header detection only); other
+    // non-audio sub-protocols are dropped silently.
+    const uint8_t subProto = buf[4] & 0xE0;
+    if (subProto == static_cast<uint8_t>(pcmflowudp::VbanSubProtocol::Service))
+    {
+        pcmflowudp::VbanServiceHeader sh{};
+        const pcmflowudp::VbanParseResult sr =
+            pcmflowudp::parseServiceHeader(buf, static_cast<size_t>(got), sh);
+        if (sr != pcmflowudp::VbanParseResult::Ok)
+            return false;
+        if (serviceCb_ != nullptr)
+        {
+            VbanServicePacket pkt;
+            pkt.header = sh;
+            pkt.payload = buf + pcmflowudp::kVbanHeaderBytes;
+            pkt.payloadBytes = static_cast<size_t>(got) - pcmflowudp::kVbanHeaderBytes;
+            pkt.fromIp = udp_.remoteIP();
+            pkt.fromPort = udp_.remotePort();
+            pkt.udp = &udp_;
+            serviceCb_(pkt, serviceUser_);
+        }
+        return true;
+    }
 
     pcmflowudp::VbanAudioHeader h{};
     const pcmflowudp::VbanParseResult r =

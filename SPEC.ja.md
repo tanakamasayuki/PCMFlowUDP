@@ -122,7 +122,7 @@ PCMFlowUDP は **VBAN のサブセット** のみを実装する — VBAN 対応
 | Audio (0x00) | **実装** — 16-bit LE PCM が主、サブコーデックで μ-law / A-law も選択可能。他の PCM ビット深度 (8 / 24 / 32 / float) は先送り |
 | Serial (0x20) | 非実装 |
 | MIDI (0x40) | 非実装 |
-| Service (0x60) | **実装 (ping + identification のみ)** — VBAN Receptor のソース一覧に出る + discovery に応答できるだけ。他の Service サブタイプは先送り |
+| Service (0x60) | **ヘッダ検出 + ユーザコールバック** — `parseServiceHeader()` と `VbanReceiver::setServiceCallback()` で Service パケットを観測・応答可能。Service レスポンダの **payload フォーマットは v0.1.x では実装しない**: VB-Audio が normative な payload 仕様を公開しておらず、GPL 実装からの reverse-engineering は本ライブラリのクリーンルーム MIT ポリシーに反するため。「VBAN Receptor の discovery 一覧に出たい」ユーザはキャプチャを取って自前でレスポンダを実装する想定 |
 
 サンプルレート: VBAN 標準の 21 種テーブルを TX 側で対応。RX 側は header が宣言する任意レートを受け付けるが、音声パスは `begin()` 時点で設定固定なので、不一致はエラーコードで通知(ランタイムリサンプリングはしない)。必要なら PCMFlow のリサンプラを上流に置く。
 
@@ -217,6 +217,7 @@ SemVer (`major.minor.patch`)、`library.properties` / `library.json` / `src/pcmf
 
 - **RTP-over-UDP** (RFC 3550) — VoIP / WebRTC との相互運用の標準。具体的要望があったら検討
 - **VBAN MIDI / Serial / 他の Service サブタイプ** — 音楽コア部分ではない
+- **ライブラリ内蔵の VBAN Service レスポンダ** (payload まで) — 現行 VB-Audio ツールの実キャプチャと、identification reply 構造のクリーンルーム解釈が必要。v0.1.x のヘッダ検出 + コールバック API で、ユーザが out-of-tree にレスポンダを実装できる
 - **VBAN の Opus / AAC サブコーデック** — コーデック兄弟側の準備も必要。PCMFlowOpus が安定してから再検討
 - **マルチキャスト** — 追加しない。host Arduino core が `beginMulticast()` を提供しない (Windows 互換性の都合) ため、プラットフォーム間で挙動を揃える方針として PCMFlowUDP もマルチキャストに依存しない。VBAN の用途はブロードキャストで足りる
 - **受信側内蔵のジッタバッファ / PLC** — PCMFlow のリングバッファが数十 ms のジッタは吸収する。具体的な dropout 報告が出たら再検討

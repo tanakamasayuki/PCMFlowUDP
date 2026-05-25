@@ -96,6 +96,7 @@ namespace pcmflowudp
         TooShort,          // input shorter than kVbanHeaderBytes
         BadSignature,      // first 4 bytes are not 'V','B','A','N'
         NotAudio,          // valid VBAN but a non-audio sub-protocol
+        NotService,        // valid VBAN but a non-service sub-protocol
         SampleRateInvalid, // sample-rate index outside the 21-entry table
     };
 
@@ -111,6 +112,52 @@ namespace pcmflowudp
     VbanParseResult parseAudioHeader(const uint8_t *in,
                                      size_t len,
                                      VbanAudioHeader &out);
+
+    // -------------------------------------------------------------------
+    // VBAN service-sub-protocol header (28 bytes).
+    //
+    // Wire layout for Service packets:
+    //   [0..3]   'V','B','A','N'
+    //   [4]      0x60 | (serviceFunction & 0x1F)
+    //   [5]      serviceFlags  (high bit 0x80 == reply, low bits sub-function)
+    //   [6..7]   reserved / function-specific (kept as raw bytes for now)
+    //   [8..23]  streamName (16 bytes, ASCII, zero-padded)
+    //   [24..27] frameCounter (uint32_t little-endian)
+    //
+    // Only the framing-layer is parsed here: the payload struct varies
+    // per service-function and is intentionally left to the caller via
+    // VbanServiceCallback (see VbanReceiver.h). PCMFlowUDP exposes the
+    // parsed header + raw payload pointer; the responder logic lives
+    // outside this library until verified packet captures are available
+    // (see SPEC §6).
+    static constexpr uint8_t kVbanServiceFunctionMask = 0x1F;
+    static constexpr uint8_t kVbanServiceReplyFlag = 0x80;
+
+    // The two service functions PCMFlowUDP recognizes by name. Other
+    // function codes are passed through to the callback as raw uint8_t.
+    static constexpr uint8_t kVbanServiceIdentification = 0x00;
+    static constexpr uint8_t kVbanServiceChatUTF8 = 0x01;
+
+    struct VbanServiceHeader
+    {
+        uint8_t serviceFunction = 0; // byte 4 low 5 bits
+        uint8_t serviceFlags = 0;    // byte 5: high bit 0x80 = reply
+        uint8_t rawByte6 = 0;        // function-specific
+        uint8_t rawByte7 = 0;        // function-specific
+        char streamName[kVbanStreamNameBytes + 1] = {0};
+        uint32_t frameCounter = 0;
+
+        bool isReply() const { return (serviceFlags & kVbanServiceReplyFlag) != 0; }
+    };
+
+    // Pack a VbanServiceHeader into the first 28 bytes of `out`. Returns
+    // false on null `out` or out-of-range serviceFunction (>= 0x20).
+    bool encodeServiceHeader(const VbanServiceHeader &in, uint8_t *out);
+
+    // Parse the first 28 bytes of `in` into a VbanServiceHeader.
+    VbanParseResult parseServiceHeader(const uint8_t *in,
+                                       size_t len,
+                                       VbanServiceHeader &out);
 } // namespace pcmflowudp
 
 #endif // PCMFLOWUDP_VBANPROTOCOL_H

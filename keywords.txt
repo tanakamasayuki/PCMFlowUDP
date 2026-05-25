@@ -12,6 +12,11 @@ VbanSender	KEYWORD1
 VbanReceiver	KEYWORD1
 VbanSubProtocol	KEYWORD1
 VbanSubCodec	KEYWORD1
+VbanAudioHeader	KEYWORD1
+VbanServiceHeader	KEYWORD1
+VbanServicePacket	KEYWORD1
+VbanServiceCallback	KEYWORD1
+VbanParseResult	KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
@@ -32,6 +37,13 @@ isReady	KEYWORD2
 isEof	KEYWORD2
 lastError	KEYWORD2
 poll	KEYWORD2
+setServiceCallback	KEYWORD2
+encodeAudioHeader	KEYWORD2
+parseAudioHeader	KEYWORD2
+encodeServiceHeader	KEYWORD2
+parseServiceHeader	KEYWORD2
+isReply	KEYWORD2
+samplesPerPacket	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)

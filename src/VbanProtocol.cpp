@@ -119,4 +119,60 @@ namespace pcmflowudp
             (static_cast<uint32_t>(in[27]) << 24);
         return VbanParseResult::Ok;
     }
+
+    bool encodeServiceHeader(const VbanServiceHeader &in, uint8_t *out)
+    {
+        if (out == nullptr)
+            return false;
+        if (in.serviceFunction > kVbanServiceFunctionMask)
+            return false;
+
+        memcpy(out, kVbanSignature, 4);
+        out[4] = static_cast<uint8_t>(VbanSubProtocol::Service) |
+                 (in.serviceFunction & kVbanServiceFunctionMask);
+        out[5] = in.serviceFlags;
+        out[6] = in.rawByte6;
+        out[7] = in.rawByte7;
+
+        memset(out + 8, 0, kVbanStreamNameBytes);
+        const size_t n = strnlen(in.streamName, kVbanStreamNameBytes);
+        if (n > 0)
+            memcpy(out + 8, in.streamName, n);
+
+        out[24] = static_cast<uint8_t>(in.frameCounter & 0xFF);
+        out[25] = static_cast<uint8_t>((in.frameCounter >> 8) & 0xFF);
+        out[26] = static_cast<uint8_t>((in.frameCounter >> 16) & 0xFF);
+        out[27] = static_cast<uint8_t>((in.frameCounter >> 24) & 0xFF);
+        return true;
+    }
+
+    VbanParseResult parseServiceHeader(const uint8_t *in,
+                                       size_t len,
+                                       VbanServiceHeader &out)
+    {
+        if (in == nullptr || len < kVbanHeaderBytes)
+            return VbanParseResult::TooShort;
+        if (memcmp(in, kVbanSignature, 4) != 0)
+            return VbanParseResult::BadSignature;
+
+        const uint8_t subProto = in[4] & 0xE0;
+        if (subProto != static_cast<uint8_t>(VbanSubProtocol::Service))
+            return VbanParseResult::NotService;
+
+        out.serviceFunction = in[4] & kVbanServiceFunctionMask;
+        out.serviceFlags = in[5];
+        out.rawByte6 = in[6];
+        out.rawByte7 = in[7];
+
+        memset(out.streamName, 0, sizeof(out.streamName));
+        memcpy(out.streamName, in + 8, kVbanStreamNameBytes);
+        out.streamName[kVbanStreamNameBytes] = '\0';
+
+        out.frameCounter =
+            static_cast<uint32_t>(in[24]) |
+            (static_cast<uint32_t>(in[25]) << 8) |
+            (static_cast<uint32_t>(in[26]) << 16) |
+            (static_cast<uint32_t>(in[27]) << 24);
+        return VbanParseResult::Ok;
+    }
 } // namespace pcmflowudp
