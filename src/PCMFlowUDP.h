@@ -28,5 +28,7 @@
 #include "RawUdpStream.h"
 #include "VbanSender.h"
 #include "VbanReceiver.h"
+#include "RtpSender.h"
+#include "RtpReceiver.h"
 
 #endif // PCMFLOWUDP_H
