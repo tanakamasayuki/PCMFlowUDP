@@ -65,6 +65,52 @@ namespace pcmflowudp
 
     // Inverse lookup.
     uint32_t vbanSampleRateHz(uint8_t index);
+
+    // -------------------------------------------------------------------
+    // VBAN audio-sub-protocol header (28 bytes).
+    //
+    // Wire layout (little-endian where multi-byte):
+    //   [0..3]   'V','B','A','N'         (signature)
+    //   [4]      (subProtocol << 5) | (sampleRateIndex & 0x1F)
+    //   [5]      numSamples  - 1         (per channel; wire value 0..255 == 1..256)
+    //   [6]      numChannels - 1         (wire value 0..255 == 1..256)
+    //   [7]      subCodec                (PCM16 = 0x01, MuLaw = 0x10, etc.)
+    //   [8..23]  streamName              (zero-padded ASCII, 16 bytes)
+    //   [24..27] frameCounter            (uint32_t little-endian)
+    //
+    // On parse, numSamples / numChannels are returned as the application
+    // values (1..256), not the wire's "minus one" form.
+    struct VbanAudioHeader
+    {
+        uint8_t sampleRateIndex = 0; // 0..20
+        uint16_t numSamples = 1;     // 1..256
+        uint16_t numChannels = 1;    // 1..256
+        VbanSubCodec subCodec = VbanSubCodec::PCM16;
+        char streamName[kVbanStreamNameBytes + 1] = {0};
+        uint32_t frameCounter = 0;
+    };
+
+    enum class VbanParseResult : uint8_t
+    {
+        Ok,
+        TooShort,          // input shorter than kVbanHeaderBytes
+        BadSignature,      // first 4 bytes are not 'V','B','A','N'
+        NotAudio,          // valid VBAN but a non-audio sub-protocol
+        SampleRateInvalid, // sample-rate index outside the 21-entry table
+    };
+
+    // Pack a VbanAudioHeader into the first 28 bytes of `out`. Returns
+    // false if any field is out of range (numSamples / numChannels must
+    // be 1..256; sampleRateIndex must be 0..20).
+    bool encodeAudioHeader(const VbanAudioHeader &in, uint8_t *out);
+
+    // Parse the first 28 bytes of `in` into a VbanAudioHeader. Only
+    // succeeds for valid Audio-sub-protocol packets with a known sample
+    // rate; the caller should look at the result code to distinguish
+    // "drop silently" (NotAudio) from "log and drop" (BadSignature etc.).
+    VbanParseResult parseAudioHeader(const uint8_t *in,
+                                     size_t len,
+                                     VbanAudioHeader &out);
 } // namespace pcmflowudp
 
 #endif // PCMFLOWUDP_VBANPROTOCOL_H
