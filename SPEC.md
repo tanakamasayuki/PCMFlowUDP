@@ -43,7 +43,19 @@ Two ESP32 boards on the same LAN exchange audio over plain UDP. Lower overhead t
 
 ### 3.3 Codec + transport composition
 
-PCMFlowG711's `G711Encoder` output → `RawUdpSink` for compressed VoIP-style packets. Or VBAN-compatible `VbanSink` with sub-codec field set to μ-law for VBAN PCMU streams.
+PCMFlowG711's `G711Encoder` output → `RawUdpSink` for caller-defined VoIP-style packets. Standardized codec-over-UDP interop with PCMU / PCMA / G722 / Opus payloads is the future role of `RtpSender` / `RtpReceiver` (see §12); RAW is the path until RTP lands.
+
+### 3.4 Transport selection (codec × carrier)
+
+Each transport has a deliberately narrow scope. Pick by what you need to interoperate with:
+
+| Carrier | Purpose | PCM | G.711 / G.722 / Opus |
+|---|---|---|---|
+| **RAW** | BYO-protocol escape hatch — caller defines the wire format on top of UDP datagrams | ✓ (bytes) | ✓ (bytes; pair with codec sibling) |
+| **VBAN** | Interop with VB-Audio Voicemeeter / VBAN Receptor | ✓ (PCM16, optionally PCM8) | **not in scope** — RTP is the codec-aware path |
+| **RTP** *(planned v0.2.0)* | Interop with VoIP / WebRTC / standard streaming tooling | ✓ (L16, PT 10/11) | ✓ via standard payload types: PCMU(0), PCMA(8), G722(9), Opus(dynamic per RFC 7587) |
+
+RAW is deliberately codec-agnostic; if the caller wants standard interop, **VBAN (PCM-only) or RTP (codec-aware) is the right tool**. RAW exists for device-to-device proprietary protocols, telemetry, and low-level testing.
 
 ## 4. Hardware support
 
@@ -119,7 +131,7 @@ PCMFlowUDP implements a **subset of VBAN** — only the portions needed to send 
 
 | VBAN sub-protocol | Status |
 |---|---|
-| Audio (0x00) | **Implemented** — PCM 16-bit LE primary; μ-law / A-law as sub-codec selectable. Other PCM bit-depths (8 / 24 / 32 / float) are deferred. |
+| Audio (0x00) | **Implemented for PCM only** — PCM 16-bit LE in v0.1.x. PCM 8-bit may be added on request. **μ-law / A-law / Opus carried inside VBAN are intentionally out of scope**: standardized codec-over-UDP interop is the future role of RTP (§3.4, §12), and supporting the same codecs through both VBAN sub-codecs and RTP payload types would duplicate the matrix. Other PCM bit-depths (24 / 32 / float) are deferred. |
 | Serial (0x20) | Not implemented |
 | MIDI (0x40) | Not implemented |
 | Service (0x60) | **Header detection + user callback** — `parseServiceHeader()` and a `VbanReceiver::setServiceCallback()` API let the caller observe / respond to Service packets. The responder *payload* format is intentionally not implemented in v0.1.x: VB-Audio does not publish a normative payload spec, and reverse-engineering from GPL sources would conflict with this library's clean-room MIT policy. Users wanting "appear in VBAN Receptor's discovery list" can implement the responder out-of-tree against their own packet captures. |
@@ -215,7 +227,7 @@ SemVer (`major.minor.patch`) maintained in `library.properties`, `library.json`,
 
 Captured here so they aren't lost; not in v0.1.x:
 
-- **RTP-over-UDP** (RFC 3550). Standard for VoIP / WebRTC interop. Defer until a concrete user request appears.
+- **RTP-over-UDP** (RFC 3550), planned for **v0.2.0**. Parallel to the VBAN classes, with the same `UDP&` injection pattern: `RtpSender` / `RtpReceiver`. **Codec-aware via standard payload types**: PCMU(0), PCMA(8), G722(9), L16 mono/stereo(11/10), and dynamic for Opus per RFC 7587. The sender exposes a bytes-in API (`writeEncoded`) so codec siblings (`G711Encoder`, future `G722Encoder`, `OpusEncoder`) compose naturally; an L16-specific `writeFrames(int16_t*)` helper handles network-byte-order packing for the PCM payload types. Defer concrete implementation until PCMFlowOpus stabilizes (Opus is the largest codec sibling and shapes the RTP timing contract).
 - **VBAN MIDI / Serial / additional Service subtypes**. Not music-related core.
 - **Built-in VBAN Service responder** (payload-level): needs verified packet captures against current VB-Audio tools, plus a clean-room interpretation of the identification reply structure. The header-detection + callback API in v0.1.x lets users implement responders out-of-tree until then.
 - **VBAN with Opus / AAC sub-codecs**. Requires a codec sibling at the same time; revisit after PCMFlowOpus stabilizes.

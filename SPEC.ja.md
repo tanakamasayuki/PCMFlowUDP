@@ -43,7 +43,19 @@ PCMFlowUDP は **transport 専用**。圧縮された音声を運ぶ場合は PC
 
 ### 3.3 コーデック + transport の合成
 
-PCMFlowG711 の `G711Encoder` 出力 → `RawUdpSink` で圧縮 VoIP 風パケットを送る、あるいは VBAN 互換 `VbanSink` のサブコーデック欄に μ-law を指定して VBAN PCMU ストリームを流す。
+PCMFlowG711 の `G711Encoder` 出力 → `RawUdpSink` で呼び出し側定義の VoIP 風パケットを送る。**PCMU / PCMA / G.722 / Opus の標準コーデック over UDP 相互運用は将来 `RtpSender` / `RtpReceiver` (§12) の役割** で、RTP が入るまでは RAW が一時的にその位置を埋める。
+
+### 3.4 トランスポート選択 (codec × carrier)
+
+各トランスポートは意図的にスコープを狭く切る。何と相互運用したいかで選ぶ:
+
+| キャリア | 目的 | PCM | G.711 / G.722 / Opus |
+|---|---|---|---|
+| **RAW** | BYO プロトコルの逃げ道 — UDP datagram の上にユーザー定義の wire format を載せる | ✓ (バイト列) | ✓ (バイト列、コーデック兄弟と組み合わせ) |
+| **VBAN** | VB-Audio Voicemeeter / VBAN Receptor との相互運用 | ✓ (PCM16、必要なら PCM8) | **対象外** — コーデック対応は RTP の役割 |
+| **RTP** *(v0.2.0 予定)* | VoIP / WebRTC / 標準ストリーミングツールとの相互運用 | ✓ (L16, PT 10/11) | ✓ 標準 payload type 経由: PCMU(0)、PCMA(8)、G722(9)、Opus (dynamic, RFC 7587) |
+
+RAW は意図的にコーデック非依存。標準ツールと相互運用したい場合は **VBAN (PCM 専用) か RTP (コーデック対応)** を選ぶ。RAW はデバイス間独自プロトコル、テレメトリ、低レイヤ試験向け。
 
 ## 4. ハードウェア対応
 
@@ -119,7 +131,7 @@ PCMFlowUDP は **VBAN のサブセット** のみを実装する — VBAN 対応
 
 | VBAN サブプロトコル | ステータス |
 |---|---|
-| Audio (0x00) | **実装** — 16-bit LE PCM が主、サブコーデックで μ-law / A-law も選択可能。他の PCM ビット深度 (8 / 24 / 32 / float) は先送り |
+| Audio (0x00) | **PCM のみ実装** — v0.1.x は 16-bit LE PCM。PCM 8-bit は要望があれば追加。**μ-law / A-law / Opus を VBAN 内で運ぶことは意図的に対象外**: 標準コーデック over UDP は将来 RTP の役割 (§3.4 / §12) で、VBAN サブコーデックと RTP payload type の両方で同じコーデックを抱えるとマトリクスが重複するため。他の PCM ビット深度 (24 / 32 / float) は先送り |
 | Serial (0x20) | 非実装 |
 | MIDI (0x40) | 非実装 |
 | Service (0x60) | **ヘッダ検出 + ユーザコールバック** — `parseServiceHeader()` と `VbanReceiver::setServiceCallback()` で Service パケットを観測・応答可能。Service レスポンダの **payload フォーマットは v0.1.x では実装しない**: VB-Audio が normative な payload 仕様を公開しておらず、GPL 実装からの reverse-engineering は本ライブラリのクリーンルーム MIT ポリシーに反するため。「VBAN Receptor の discovery 一覧に出たい」ユーザはキャプチャを取って自前でレスポンダを実装する想定 |
@@ -215,7 +227,7 @@ SemVer (`major.minor.patch`)、`library.properties` / `library.json` / `src/pcmf
 
 忘れないようここに記録。v0.1.x には含めない:
 
-- **RTP-over-UDP** (RFC 3550) — VoIP / WebRTC との相互運用の標準。具体的要望があったら検討
+- **RTP-over-UDP** (RFC 3550) — **v0.2.0 で予定**。VBAN クラスと並列に、同じ `UDP&` injection パターンで `RtpSender` / `RtpReceiver` を提供。**標準 payload type でコーデック対応**: PCMU(0)、PCMA(8)、G722(9)、L16 モノ/ステレオ(11/10)、Opus は dynamic PT (RFC 7587)。送信側は bytes-in API (`writeEncoded`) を公開し、コーデック兄弟 (`G711Encoder`、将来の `G722Encoder` / `OpusEncoder`) と自然に合成可能。L16 用に `writeFrames(int16_t*)` ヘルパ (network byte order pack) も提供。実装着手は PCMFlowOpus の安定後 (Opus が最大のコーデック兄弟で、RTP の timing contract を決める要因になる)
 - **VBAN MIDI / Serial / 他の Service サブタイプ** — 音楽コア部分ではない
 - **ライブラリ内蔵の VBAN Service レスポンダ** (payload まで) — 現行 VB-Audio ツールの実キャプチャと、identification reply 構造のクリーンルーム解釈が必要。v0.1.x のヘッダ検出 + コールバック API で、ユーザが out-of-tree にレスポンダを実装できる
 - **VBAN の Opus / AAC サブコーデック** — コーデック兄弟側の準備も必要。PCMFlowOpus が安定してから再検討
