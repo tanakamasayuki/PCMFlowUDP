@@ -17,6 +17,11 @@ VbanServiceHeader	KEYWORD1
 VbanServicePacket	KEYWORD1
 VbanServiceCallback	KEYWORD1
 VbanParseResult	KEYWORD1
+RtpSender	KEYWORD1
+RtpReceiver	KEYWORD1
+RtpHeader	KEYWORD1
+RtpPayloadType	KEYWORD1
+RtpParseResult	KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
@@ -44,6 +49,24 @@ encodeServiceHeader	KEYWORD2
 parseServiceHeader	KEYWORD2
 isReply	KEYWORD2
 samplesPerPacket	KEYWORD2
+setPayloadType	KEYWORD2
+setTimestampIncrement	KEYWORD2
+setMarker	KEYWORD2
+setSsrc	KEYWORD2
+setTimestamp	KEYWORD2
+payloadType	KEYWORD2
+sequenceNumber	KEYWORD2
+timestamp	KEYWORD2
+ssrc	KEYWORD2
+marker	KEYWORD2
+isPcm	KEYWORD2
+hasEncoded	KEYWORD2
+writeEncoded	KEYWORD2
+readEncoded	KEYWORD2
+clockRate	KEYWORD2
+timestampIncrement	KEYWORD2
+encodeRtpHeader	KEYWORD2
+parseRtpHeader	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
@@ -55,3 +78,8 @@ PCM16	LITERAL1
 PCM8	LITERAL1
 MuLaw	LITERAL1
 ALaw	LITERAL1
+PCMU	LITERAL1
+PCMA	LITERAL1
+G722	LITERAL1
+L16Mono	LITERAL1
+L16Stereo	LITERAL1
