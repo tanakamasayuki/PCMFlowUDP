@@ -78,11 +78,13 @@ private:
     char currentStream_[pcmflowudp::kVbanStreamNameBytes + 1] = {0};
     uint32_t lastFrameCounter_ = 0;
 
-    // Decoded-PCM ring (skeleton: sized to a generous single packet).
+    // Decoded-PCM ring. Sized to hold ~2 packets at typical stereo
+    // PCM16 / 256-sample/packet load (1024 byte payload each).
     static constexpr size_t kQueueBytes = 2048;
     uint8_t queue_[kQueueBytes] = {};
-    size_t queueHead_ = 0;
-    size_t queueTail_ = 0;
+    size_t queueHead_ = 0;  // next byte to read
+    size_t queueTail_ = 0;  // next byte to write
+    size_t queueCount_ = 0; // bytes currently buffered
 };
 
 #endif // PCMFLOWUDP_VBANRECEIVER_H

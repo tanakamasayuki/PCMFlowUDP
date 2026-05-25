@@ -55,6 +55,17 @@ public:
     const char *streamName() const { return streamName_; }
     void setStreamName(const char *name);
 
+    // Force the currently-pending samples out as one VBAN packet, even
+    // if it is shorter than the full samplesPerPacket() worth. Useful
+    // for end-of-stream and for callers whose chunk size doesn't align
+    // with the internal packet size. Returns false on UDP send failure
+    // or NotReady; an empty pending buffer is a no-op success.
+    bool flush();
+
+    // Number of PCM frames packed per VBAN audio packet at the current
+    // format. Set automatically by setFormat() to min(256, 1408 / bytesPerFrame).
+    uint16_t samplesPerPacket() const { return samplesPerPacket_; }
+
     // PCMSink interface -------------------------------------------------
     const PCMFormat &format() const override { return format_; }
     size_t writeFrames(const void *in, size_t frameCount) override;
@@ -68,12 +79,19 @@ private:
     uint16_t destPort_ = 0;
     char streamName_[pcmflowudp::kVbanStreamNameBytes + 1] = {0};
     PCMFormat format_{};
+    uint8_t sampleRateIndex_ = 0;
+    uint16_t samplesPerPacket_ = 0;
+    size_t pendingFrames_ = 0;
     uint32_t frameCounter_ = 0;
     bool ready_ = false;
     Error error_ = Error::NotReady;
 
     // Packet scratch (header + payload).
     uint8_t packet_[pcmflowudp::kVbanMaxPacketBytes] = {};
+
+    // Pack pendingFrames_ frames currently sitting at packet_[28..] into a
+    // VBAN audio packet and send it.
+    void emitPacket();
 };
 
 #endif // PCMFLOWUDP_VBANSENDER_H
