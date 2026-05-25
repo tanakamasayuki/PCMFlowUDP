@@ -25,6 +25,20 @@ All four classes are constructed around a caller-supplied Arduino `UDP` instance
 
 ---
 
+## Picking a carrier
+
+Each transport has a deliberately narrow scope. Pick by what you need to interoperate with:
+
+| Carrier | Use it when | PCM | G.711 / G.722 / Opus |
+|---|---|---|---|
+| **RAW** | You're defining your own wire format on top of UDP (device-to-device, telemetry, low-level tests) | ✓ bytes | ✓ bytes (pair with a codec sibling) |
+| **VBAN** | You want VB-Audio Voicemeeter / VBAN Receptor on a PC to see your stream | ✓ | not in scope |
+| **RTP** *(planned v0.2.0)* | You want VoIP / WebRTC / standard streaming interop with codec payload types | ✓ (L16) | ✓ (PCMU / PCMA / G722 / Opus) |
+
+RAW is intentionally codec-agnostic; for standardized interop, use VBAN (PCM-only) or the future RTP (codec-aware). See [SPEC §3.4](SPEC.md#34-transport-selection-codec--carrier) for the full discussion.
+
+---
+
 ## PCMFlow family
 
 PCMFlowUDP is the **first non-codec member** of the PCMFlow family — a transport, not a codec.
