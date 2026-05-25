@@ -2,13 +2,13 @@
 
 > 日本語版: [README.ja.md](README.ja.md)
 
-Optional **UDP transport adapter** for [PCMFlow](https://github.com/tanakamasayuki/PCMFlow). Stream PCM audio between Arduino-class devices and PCs over the local network — either as **raw UDP datagrams** or as packets compatible with the **[VBAN protocol](https://vb-audio.com/Voicemeeter/vban.htm)** (audio sub-protocol subset; interoperates with VB-Audio Voicemeeter and VBAN Receptor).
+**UDP transport adapter** for [PCMFlow](https://github.com/tanakamasayuki/PCMFlow). Stream PCM audio between Arduino-class devices and PCs over the local network — as **raw UDP datagrams**, as packets compatible with the **[VBAN protocol](https://vb-audio.com/Voicemeeter/vban.htm)** (PCM subset; interoperates with VB-Audio Voicemeeter and VBAN Receptor), or as **[RTP](https://datatracker.ietf.org/doc/html/rfc3550)** packets with standard codec payload types (PCMU / PCMA / G.722 / L16 / Opus).
 
 A **clean-room MIT** implementation. No third-party source code is vendored anywhere in this repo; the entire library is single-author MIT.
 
 See [SPEC.md](SPEC.md) for the full specification.
 
-> **Trademark.** "VBAN" is a protocol name owned by VB-Audio Software. PCMFlowUDP is **not affiliated with VB-Audio**; the name is used here in a descriptive sense to identify the wire protocol this library partially implements. Only a **subset** of VBAN is supported (audio + service ping). See SPEC §14 for details.
+> **Trademark.** "VBAN" is a protocol name owned by VB-Audio Software. PCMFlowUDP is **not affiliated with VB-Audio**; the name is used here in a descriptive sense to identify the wire protocol this library partially implements. Only the PCM subset of VBAN is supported. See [SPEC §13](SPEC.md#13-license--trademarks) for details.
 
 ---
 
@@ -18,10 +18,12 @@ See [SPEC.md](SPEC.md) for the full specification.
 |---|---|---|---|
 | `RawUdpSink` | bytes → UDP datagram | RAW (caller-defined payload) | `ByteSink` |
 | `RawUdpStream` | UDP datagram → bytes | RAW | `ByteStream` |
-| `VbanSender` | PCM → UDP datagram | VBAN audio sub-protocol | `PCMSink` |
-| `VbanReceiver` | UDP datagram → PCM | VBAN audio sub-protocol | `PCMSource` |
+| `VbanSender` | PCM → UDP datagram | VBAN audio (PCM only) | `PCMSink` |
+| `VbanReceiver` | UDP datagram → PCM | VBAN audio (PCM only) | `PCMSource` |
+| `RtpSender` | PCM or encoded bytes → UDP datagram | RTP (RFC 3550) | `PCMSink` (L16) + `writeEncoded()` |
+| `RtpReceiver` | UDP datagram → PCM or encoded bytes | RTP | `PCMSource` (L16) + `readEncoded()` |
 
-All four classes are constructed around a caller-supplied Arduino `UDP` instance (typically `WiFiUDP`), so PCMFlowUDP pulls in no concrete WiFi / Ethernet stack of its own. The same code runs on ESP32 and on the `lang-ship:host` (1.0.6+) test target.
+All six classes are constructed around a caller-supplied Arduino `UDP` instance (typically `WiFiUDP`), so PCMFlowUDP pulls in no concrete WiFi / Ethernet stack of its own. The same code runs on ESP32 and on the `lang-ship:host` test target.
 
 ---
 
@@ -32,16 +34,16 @@ Each transport has a deliberately narrow scope. Pick by what you need to interop
 | Carrier | Use it when | PCM | G.711 / G.722 / Opus |
 |---|---|---|---|
 | **RAW** | You're defining your own wire format on top of UDP (device-to-device, telemetry, low-level tests) | ✓ bytes | ✓ bytes (pair with a codec sibling) |
-| **VBAN** | You want VB-Audio Voicemeeter / VBAN Receptor on a PC to see your stream | ✓ | not in scope |
-| **RTP** *(planned v0.2.0)* | You want VoIP / WebRTC / standard streaming interop with codec payload types | ✓ (L16) | ✓ (PCMU / PCMA / G722 / Opus) |
+| **VBAN** | You want VB-Audio Voicemeeter / VBAN Receptor on a PC to see your stream | ✓ | not in scope — RTP is the codec-aware path |
+| **RTP** | You want VoIP / WebRTC / standard streaming interop with codec payload types | ✓ (L16) | ✓ (PCMU / PCMA / G722 / Opus) |
 
-RAW is intentionally codec-agnostic; for standardized interop, use VBAN (PCM-only) or the future RTP (codec-aware). See [SPEC §3.4](SPEC.md#34-transport-selection-codec--carrier) for the full discussion.
+RAW is intentionally codec-agnostic; for standardized interop, use **VBAN (PCM)** or **RTP (codec-aware)**. See [SPEC §3.4](SPEC.md#34-transport-selection-codec--carrier) for the full discussion.
 
 ---
 
 ## PCMFlow family
 
-PCMFlowUDP is the **first non-codec member** of the PCMFlow family — a transport, not a codec.
+PCMFlowUDP is the **transport-only member** of the PCMFlow family.
 
 | | role |
 |---|---|
@@ -49,9 +51,9 @@ PCMFlowUDP is the **first non-codec member** of the PCMFlow family — a transpo
 | [PCMFlowG711](https://github.com/tanakamasayuki/PCMFlowG711) | narrowband μ-law / A-law codec |
 | [PCMFlowG722](https://github.com/tanakamasayuki/PCMFlowG722) | wideband HD voice codec |
 | [PCMFlowOpus](https://github.com/tanakamasayuki/PCMFlowOpus) | low-bitrate / fullband codec |
-| **PCMFlowUDP** (this lib) | UDP transport (RAW + VBAN subset) |
+| **PCMFlowUDP** (this lib) | UDP transport (RAW + VBAN + RTP) |
 
-Compose a codec sibling with PCMFlowUDP to send compressed audio over UDP — for example `G711Encoder` → `RawUdpSink`, or use `VbanSender` with the VBAN μ-law sub-codec for PCMU streams.
+Compose a codec sibling with PCMFlowUDP to send compressed audio over UDP. For example, `G711Encoder` bytes → `RtpSender::writeEncoded()` (with payload type set to PCMU) produces a standards-compliant VoIP stream that any SIP softphone can play.
 
 ---
 
@@ -89,7 +91,7 @@ void loop() {
 }
 ```
 
-A fully-wired example sketch lives in [examples/VbanMicToPc/](examples/VbanMicToPc/).
+A fully-wired example sketch lives in [examples/VbanMicToPc/](examples/VbanMicToPc/). An RTP/PCMU SIP-softphone example is in [examples/RtpVoipG711/](examples/RtpVoipG711/).
 
 ---
 
@@ -97,14 +99,14 @@ A fully-wired example sketch lives in [examples/VbanMicToPc/](examples/VbanMicTo
 
 PCMFlowUDP codes against the Arduino `UDP` abstract base class, so any board with an Arduino-compatible UDP implementation works:
 
-- **Primary**: ESP32 family (`WiFiUDP` / `EthernetUDP`), Linux host via [lang-ship:host](https://github.com/tanakamasayuki/lang-ship-arduino-core) 1.0.6+.
+- **Primary**: ESP32 family (`WiFiUDP` / `EthernetUDP`), Linux host via [lang-ship:host](https://github.com/tanakamasayuki/lang-ship-arduino-core).
 - **Best-effort** (no maintainer testing): Arduino UNO R4 WiFi, MKR WiFi 1010 / Nano 33 IoT, Raspberry Pi Pico W, Teensy 4.1 with Ethernet, Portenta H7, any board + W5500/ENC28J60 shield.
-- **Out of scope**: 8-bit AVR (insufficient RAM for VBAN frames), BLE-only boards.
+- **Out of scope**: 8-bit AVR (insufficient RAM for VBAN / RTP frames), BLE-only boards.
 
-**Multicast is not supported** on any platform — the host Arduino core does not provide `beginMulticast()` (Windows-portability constraint). VBAN-style fan-out uses **broadcast** instead, which is the typical VBAN deployment anyway.
+**Multicast is not supported** on any platform — the host Arduino core does not provide `beginMulticast()` (Windows-portability constraint). VBAN-style fan-out uses **broadcast** instead, which is the typical deployment anyway.
 
 ---
 
 ## License
 
-MIT. See [LICENSE](LICENSE). No third-party vendored code in this repo. See [SPEC §14](SPEC.md#14-license--trademarks) for the trademark notice regarding VBAN / Voicemeeter / VBAN Receptor.
+MIT. See [LICENSE](LICENSE). No third-party vendored code in this repo. See [SPEC §13](SPEC.md#13-license--trademarks) for the trademark notice regarding VBAN / Voicemeeter / VBAN Receptor.
