@@ -15,3 +15,4 @@ filterwarnings = [
     "ignore:record_xml_attribute is an experimental feature:pytest.PytestExperimentalApiWarning",
 ]
 addopts = "--save-state"
+pythonpath = ["."]
