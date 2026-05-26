@@ -27,8 +27,11 @@ from net_helpers.vban import (                                     # noqa: E402
 
 
 def test_vban_python_to_dut(dut):
-    match = dut.expect(re.compile(rb"DUT-READY port=(\d+)"), timeout=20)
-    dut_port = int(match.group(1))
+    match = dut.expect(
+        re.compile(rb"DUT-READY ip=(\S+) port=(\d+)"), timeout=90
+    )
+    dut_ip = match.group(1).decode()
+    dut_port = int(match.group(2))
 
     # A short sine ramp so the first three samples are non-zero and
     # easy to read in the assertion line.
@@ -49,13 +52,13 @@ def test_vban_python_to_dut(dut):
     packet = build_audio_packet(header, pcm_to_le_bytes(samples))
 
     with RawUdp(bind_port=0) as udp:
-        udp.send(packet, "127.0.0.1", dut_port)
+        udp.send(packet, dut_ip, dut_port)
         match = dut.expect(
             re.compile(
                 rb"VBAN-RX rate=(\d+) channels=(\d+) frames=(\d+) "
                 rb"s0=(-?\d+) s1=(-?\d+) s2=(-?\d+)"
             ),
-            timeout=5,
+            timeout=10,
         )
 
     assert int(match.group(1)) == sample_rate

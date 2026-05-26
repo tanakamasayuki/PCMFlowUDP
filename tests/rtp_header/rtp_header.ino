@@ -273,7 +273,7 @@ static void test_encode_errors()
 void setup()
 {
     Serial.begin(115200);
-    delay(500);
+    delay(5000); // ESP32 Serial-USB bridge can drop early output otherwise
 
     test_encode_byte_exact();
     test_parse_byte_exact();

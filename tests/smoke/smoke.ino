@@ -8,7 +8,7 @@
 void setup()
 {
     Serial.begin(115200);
-    delay(2000);
+    delay(5000); // give the real ESP32 Serial-USB bridge time to settle
     Serial.print("PCMFlowUDP ");
     Serial.println(PCMFLOWUDP_VERSION_STR);
     Serial.println("SMOKE ready");

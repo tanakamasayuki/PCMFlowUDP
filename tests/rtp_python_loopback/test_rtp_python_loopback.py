@@ -25,8 +25,11 @@ from net_helpers.rtp import (                                      # noqa: E402
 
 
 def test_rtp_python_to_dut(dut):
-    match = dut.expect(re.compile(rb"DUT-READY port=(\d+)"), timeout=20)
-    dut_port = int(match.group(1))
+    match = dut.expect(
+        re.compile(rb"DUT-READY ip=(\S+) port=(\d+)"), timeout=90
+    )
+    dut_ip = match.group(1).decode()
+    dut_port = int(match.group(2))
 
     sample_rate = 8000
     n = 64
@@ -44,13 +47,13 @@ def test_rtp_python_to_dut(dut):
     packet = build_packet(header, pcm_to_be_bytes(samples))
 
     with RawUdp(bind_port=0) as udp:
-        udp.send(packet, "127.0.0.1", dut_port)
+        udp.send(packet, dut_ip, dut_port)
         match = dut.expect(
             re.compile(
                 rb"RTP-RX pt=(\d+) seq=(\d+) ssrc=(\d+) frames=(\d+) "
                 rb"s0=(-?\d+) s1=(-?\d+) s2=(-?\d+)"
             ),
-            timeout=5,
+            timeout=10,
         )
 
     assert int(match.group(1)) == RTP_PT_L16_MONO

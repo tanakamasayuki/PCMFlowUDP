@@ -242,7 +242,7 @@ static void test_sequence_and_marker()
 void setup()
 {
     Serial.begin(115200);
-    delay(500);
+    delay(5000); // ESP32 Serial-USB bridge can drop early output otherwise
 
     test_l16_mono_round_trip();
     test_l16_stereo_round_trip();

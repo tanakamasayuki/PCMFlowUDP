@@ -315,7 +315,7 @@ static void test_service_callback()
 void setup()
 {
     Serial.begin(115200);
-    delay(500);
+    delay(5000); // ESP32 Serial-USB bridge can drop early output otherwise
 
     test_mono_round_trip();
     test_stereo_round_trip();

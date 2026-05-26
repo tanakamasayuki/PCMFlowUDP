@@ -91,7 +91,7 @@ static void runOne(const CaptureEntry &e)
 void setup()
 {
     Serial.begin(115200);
-    delay(500);
+    delay(5000); // ESP32 Serial-USB bridge can drop early output otherwise
 
     Serial.print("INTEROP captures=");
     Serial.println(kCaptureCount);

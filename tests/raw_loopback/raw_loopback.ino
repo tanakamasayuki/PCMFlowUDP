@@ -143,7 +143,7 @@ static void test_chunked_write()
 void setup()
 {
     Serial.begin(115200);
-    delay(500);
+    delay(5000); // ESP32 Serial-USB bridge can drop early output otherwise
 
     test_loopback();
     test_empty_flush();
