@@ -54,6 +54,7 @@ setTimestampIncrement	KEYWORD2
 setMarker	KEYWORD2
 setSsrc	KEYWORD2
 setTimestamp	KEYWORD2
+setSequenceNumber	KEYWORD2
 payloadType	KEYWORD2
 sequenceNumber	KEYWORD2
 timestamp	KEYWORD2

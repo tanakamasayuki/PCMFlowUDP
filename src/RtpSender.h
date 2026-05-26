@@ -80,6 +80,10 @@ public:
     void setTimestamp(uint32_t ts) { timestamp_ = ts; }
     uint32_t timestamp() const { return timestamp_; }
 
+    // Override the next outgoing sequence number. The default after
+    // begin() is a random value; tests and resync paths that need a
+    // known starting point can pin it here.
+    void setSequenceNumber(uint16_t seq) { sequenceNumber_ = seq; }
     uint16_t sequenceNumber() const { return sequenceNumber_; }
     uint8_t payloadType() const { return payloadType_; }
     uint32_t clockRate() const { return clockRate_; }
