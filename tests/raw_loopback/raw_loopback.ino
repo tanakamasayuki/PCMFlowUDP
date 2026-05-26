@@ -4,9 +4,13 @@
 // known payload; the receiver-side bytes are asserted byte-for-byte
 // against the sender's input.
 //
-// On lang-ship:host this exercises real BSD sockets via the host
-// Arduino core's WiFiUDP. On esp32 the same sketch runs against the
-// real WiFi stack (manual setup; not part of the automated CI run).
+// HOST PROFILE ONLY. The arduino-esp32 build of lwIP does not enable
+// the loopback interface (LWIP_HAVE_LOOPIF), so sending a UDP datagram
+// to 127.0.0.1 from one WiFiUDP and receiving it on another in the
+// same process is not supported on ESP32. The same-process flow is
+// fully exercised on host; the Python ↔ DUT counterparts
+// (raw_python_loopback/) cover the on-wire path on real hardware.
+// See tests/README.md "ESP32 vs host" for the full rationale.
 
 #include <WiFiUdp.h>
 #include <PCMFlowUDP.h>

@@ -9,12 +9,9 @@
 // The DUT polls for one datagram, echoes it back to the sender, and
 // prints `RX <N> bytes` so Python can observe the receive over Serial.
 
+#include <WiFi.h>
 #include <WiFiUdp.h>
 #include <PCMFlowUDP.h>
-
-#if defined(ARDUINO_ARCH_ESP32)
-#include <WiFi.h>
-#endif
 
 static constexpr uint16_t kRxPort = 49200;
 
@@ -24,7 +21,6 @@ RawUdpStream g_stream(g_rxUdp);
 
 static IPAddress connectAndReportIp()
 {
-#if defined(ARDUINO_ARCH_ESP32)
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     const unsigned long start = millis();
@@ -39,9 +35,6 @@ static IPAddress connectAndReportIp()
             delay(1000);
     }
     return WiFi.localIP();
-#else
-    return IPAddress(127, 0, 0, 1);
-#endif
 }
 
 void setup()
@@ -55,12 +48,14 @@ void setup()
     if (g_txUdp.begin(0) != 1)
     {
         Serial.println("FAIL tx-begin");
-        while (true) delay(1000);
+        while (true)
+            delay(1000);
     }
     if (!g_stream.begin(kRxPort))
     {
         Serial.println("FAIL stream-begin");
-        while (true) delay(1000);
+        while (true)
+            delay(1000);
     }
 
     Serial.print("DUT-READY ip=");

@@ -4,12 +4,9 @@
 // regardless of profile: 127.0.0.1 on host, WiFi IP on ESP32 (joined
 // using build-time WIFI_SSID / WIFI_PASSWORD defines).
 
+#include <WiFi.h>
 #include <WiFiUdp.h>
 #include <PCMFlowUDP.h>
-
-#if defined(ARDUINO_ARCH_ESP32)
-#include <WiFi.h>
-#endif
 
 static constexpr uint16_t kPort = 49210;
 

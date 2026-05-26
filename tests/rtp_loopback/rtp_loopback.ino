@@ -6,6 +6,12 @@
 //   * Sequence-number continuity across multiple packets;
 //   * Marker bit set on the first packet only;
 //   * SSRC stability across packets.
+//
+// HOST PROFILE ONLY. The arduino-esp32 build of lwIP does not enable
+// the loopback interface (LWIP_HAVE_LOOPIF), so the same-process
+// 127.0.0.1 pattern used here cannot run on ESP32 hardware. The
+// on-wire RTP path is exercised on real hardware by
+// rtp_python_loopback/. See tests/README.md "ESP32 vs host".
 
 #include <WiFiUdp.h>
 #include <PCMFlowUDP.h>

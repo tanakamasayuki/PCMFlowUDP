@@ -2,6 +2,12 @@
 //
 // PCM16 samples are sent through a VBAN audio packet and read back on
 // the same host. Round-trip is bit-exact (PCM16 is a no-op codec).
+//
+// HOST PROFILE ONLY. The arduino-esp32 build of lwIP does not enable
+// the loopback interface (LWIP_HAVE_LOOPIF), so the same-process
+// 127.0.0.1 pattern used here cannot run on ESP32 hardware. The
+// on-wire VBAN path is exercised on real hardware by
+// vban_python_loopback/. See tests/README.md "ESP32 vs host".
 
 #include <WiFiUdp.h>
 #include <PCMFlowUDP.h>
