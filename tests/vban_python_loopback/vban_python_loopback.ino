@@ -18,7 +18,6 @@ VbanReceiver g_rx(g_rxUdp);
 
 static IPAddress connectAndReportIp()
 {
-#if defined(ARDUINO_ARCH_ESP32)
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     const unsigned long start = millis();
@@ -27,12 +26,10 @@ static IPAddress connectAndReportIp()
     if (WiFi.status() != WL_CONNECTED)
     {
         Serial.println("WIFI_ERROR connect_failed");
-        while (true) delay(1000);
+        while (true)
+            delay(1000);
     }
     return WiFi.localIP();
-#else
-    return IPAddress(127, 0, 0, 1);
-#endif
 }
 
 void setup()
@@ -45,7 +42,8 @@ void setup()
     if (!g_rx.begin(kPort))
     {
         Serial.println("FAIL rx-begin");
-        while (true) delay(1000);
+        while (true)
+            delay(1000);
     }
     Serial.print("DUT-READY ip=");
     Serial.print(localIp);
