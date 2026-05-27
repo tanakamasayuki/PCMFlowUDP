@@ -7,6 +7,6 @@ profiles:
     libraries:
       - dir: ../../
       - PCMFlow (0.2.1)
-      - PCMFlowG711 (0.1.0)
+      - PCMFlowG711 (0.2.0)
 
 default_profile: esp32
