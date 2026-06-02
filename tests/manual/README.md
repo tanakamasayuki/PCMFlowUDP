@@ -39,7 +39,7 @@ Use pytest + Python helpers for reference checks, and run real-application inter
 |---|---|
 | Core2 flash / serial / automated checks | `uv run pytest`, `pytest-embedded`, Arduino CLI |
 | VBAN real-application receive | VB-Audio VBAN Receptor |
-| VBAN real-application send | VB-Audio Voicemeeter |
+| VBAN real-application send | VB-Audio Voicemeeter, VBAN Talkie |
 | RTP real-application send/receive | GStreamer `gst-launch-1.0`, `ffmpeg`, `ffplay`, VLC |
 | Packet capture | Wireshark, `tshark` |
 
@@ -49,7 +49,43 @@ On Linux:
 sudo apt install ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav wireshark tshark
 ```
 
-For VBAN real-application testing, use a Windows PC with VB-Audio VBAN Receptor / Voicemeeter. Keep Core2 and the PC on the same LAN, and allow UDP 6980 for VBAN and UDP 5004 for the RTP examples in the PC firewall.
+On Windows, use MSYS2 UCRT64 and winget:
+
+```sh
+pacman -Syu
+
+pacman -S \
+  mingw-w64-ucrt-x86_64-ffmpeg \
+  mingw-w64-ucrt-x86_64-gstreamer \
+  mingw-w64-ucrt-x86_64-gst-plugins-base \
+  mingw-w64-ucrt-x86_64-gst-plugins-good \
+  mingw-w64-ucrt-x86_64-gst-plugins-bad \
+  mingw-w64-ucrt-x86_64-gst-libav
+```
+
+```powershell
+winget install WiresharkFoundation.Wireshark
+winget install VBurel.VBAN.Receptor
+winget install VBurel.VBAN.Talkie
+```
+
+Verify the installation:
+
+```sh
+gst-launch-1.0 --version
+gst-inspect-1.0 rtppcmupay
+gst-inspect-1.0 rtpg722pay
+gst-inspect-1.0 rtpopuspay
+gst-inspect-1.0 opusenc
+gst-inspect-1.0 avenc_g722
+ffmpeg -version
+```
+
+```powershell
+winget list VBAN
+```
+
+For VBAN real-application testing, use a Windows PC with VB-Audio VBAN Receptor / Voicemeeter / VBAN Talkie. `core2_voicemeeter_to_speaker/` is named for Voicemeeter, but VBAN Talkie's sender can be used as a substitute check. Keep Core2/CoreS3 and the PC on the same LAN, and allow UDP 6980 for VBAN and UDP 5004 for the RTP examples in the PC firewall.
 
 ## Planned Tests
 

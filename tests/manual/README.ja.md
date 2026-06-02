@@ -39,7 +39,7 @@ uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --
 |---|---|
 | Core2 flash / serial / 自動判定 | `uv run pytest`、`pytest-embedded`、Arduino CLI |
 | VBAN 実ソフト受信 | VB-Audio VBAN Receptor |
-| VBAN 実ソフト送信 | VB-Audio Voicemeeter |
+| VBAN 実ソフト送信 | VB-Audio Voicemeeter、VBAN Talkie |
 | RTP 実ソフト送受信 | GStreamer `gst-launch-1.0`、`ffmpeg`、`ffplay`、VLC |
 | packet capture | Wireshark、`tshark` |
 
@@ -49,7 +49,43 @@ Linux では次を入れておくと RTP と packet capture の確認ができ�
 sudo apt install ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav wireshark tshark
 ```
 
-VBAN の実ソフト確認は Windows PC + VB-Audio VBAN Receptor / Voicemeeter を推奨します。Core2 と PC は同じ LAN に置き、PC firewall で UDP 6980 (VBAN) と UDP 5004 (RTP 例) を許可します。
+Windows では MSYS2 UCRT64 と winget を使う例:
+
+```sh
+pacman -Syu
+
+pacman -S \
+  mingw-w64-ucrt-x86_64-ffmpeg \
+  mingw-w64-ucrt-x86_64-gstreamer \
+  mingw-w64-ucrt-x86_64-gst-plugins-base \
+  mingw-w64-ucrt-x86_64-gst-plugins-good \
+  mingw-w64-ucrt-x86_64-gst-plugins-bad \
+  mingw-w64-ucrt-x86_64-gst-libav
+```
+
+```powershell
+winget install WiresharkFoundation.Wireshark
+winget install VBurel.VBAN.Receptor
+winget install VBurel.VBAN.Talkie
+```
+
+導入後の確認:
+
+```sh
+gst-launch-1.0 --version
+gst-inspect-1.0 rtppcmupay
+gst-inspect-1.0 rtpg722pay
+gst-inspect-1.0 rtpopuspay
+gst-inspect-1.0 opusenc
+gst-inspect-1.0 avenc_g722
+ffmpeg -version
+```
+
+```powershell
+winget list VBAN
+```
+
+VBAN の実ソフト確認は Windows PC + VB-Audio VBAN Receptor / Voicemeeter / VBAN Talkie を推奨します。`core2_voicemeeter_to_speaker/` は Voicemeeter 前提の名前ですが、VBAN Talkie の送信機能でも代替確認できます。Core2/CoreS3 と PC は同じ LAN に置き、PC firewall で UDP 6980 (VBAN) と UDP 5004 (RTP 例) を許可します。
 
 ## 予定テスト
 
