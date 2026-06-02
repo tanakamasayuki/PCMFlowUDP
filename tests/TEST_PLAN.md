@@ -67,6 +67,8 @@ uv run --env-file .env pytest manual/core2_voicemeeter_to_speaker/core2_voicemee
 uv run --env-file .env pytest manual/core2_rtp_speaker/core2_rtp_speaker.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_g711_gstreamer/core2_rtp_g711_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_g722_gstreamer/core2_rtp_g722_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
 ```
 
@@ -97,9 +99,11 @@ Core2 uses the fixed FQBN `esp32:esp32:m5stack_core2`. Device control uses `M5Un
 | VBAN PCM reference | PCM16 LE | 16000 Hz | 1 | 256 frames | Matches existing examples and tests, is in the VBAN table, and keeps Core2/Wi-Fi load modest |
 | RTP L16 reference | PCM16 BE on wire, PT 11 | 16000 Hz | 1 | 320 frames (20 ms) | Matches `RtpSender` default packetization and is easy to drive from GStreamer |
 | RTP PCMU reference | G.711 mu-law, PT 0 | 8000 Hz | 1 | 160 samples (20 ms) | Matches RFC 3551 static payload type behavior and the existing `RtpVoipG711` example |
+| RTP G.722 reference | G.722, PT 9 | 16000 Hz audio / 8000 Hz RTP clock | 1 | 160 bytes (20 ms) | Matches the RFC 3551 G.722 timestamp convention and `PCMFlowG722`'s 16 kHz PCM API |
+| RTP Opus extension | Opus, dynamic PT 96 | 48000 Hz RTP clock | 1 | 20 ms packet | Promote after measuring Core2 CPU/RAM cost |
 | VBAN / RTP stereo extension | PCM16 | 48000 Hz | 2 | 64-256 frames | Optional real-application compatibility check, not part of the first Core2 implementation |
 
-The first Core2 manual tests require mono only. Stereo, 48 kHz, Opus, and G.722 are follow-up interoperability checks.
+Codec interop on Core2 requires G711 and G722 first. Opus relies on the codec library's own automated tests for correctness and becomes required here only after Core2 build/runtime load is measured.
 
 Speaker tests are officially judged by human confirmation for now. An external audio loopback device may add RMS, peak, or frequency checks later, but it is not required.
 
@@ -115,7 +119,10 @@ Speaker tests are officially judged by human confirmation for now. An external a
 | `core2_voicemeeter_to_speaker/` | Voicemeeter sends VBAN stream to the Core2 speaker | DUT stats + audio check | Added |
 | `core2_rtp_speaker/` | Core2 receives RTP payload and plays it through the speaker | Packet checks + human audio check | Added |
 | `core2_rtp_mic/` | Python receives RTP payload from the Core2 mic | Python sequence/timestamp/RMS checks | Added |
-| `core2_rtp_gstreamer/` | Verify interoperability with GStreamer, ffmpeg, VLC, or similar RTP tools | Tool logs + DUT stats + audio check | Added |
+| `core2_rtp_gstreamer/` | Verify Core2 playback of RTP/L16 sent by GStreamer | Tool logs + DUT stats + audio check | Added |
+| `core2_rtp_g711_gstreamer/` | Verify Core2 G711 decode/playback of RTP/PCMU sent by GStreamer | Tool logs + DUT stats + audio check | Added |
+| `core2_rtp_g722_gstreamer/` | Verify Core2 G722 decode/playback of RTP/G.722 sent by GStreamer | Tool logs + DUT stats + audio check | Added |
+| RTP/Opus interop | Verify whether Core2 can decode/play RTP/Opus dynamic PT reliably | Build size + runtime heap + audio check | Optional |
 | `core2_stability/` | Run UDP audio for 30 minutes and check drops, heap, and Wi-Fi state | Serial stats | Added |
 
 ## Real-Application Commands

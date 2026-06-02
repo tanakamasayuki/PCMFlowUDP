@@ -181,6 +181,58 @@ static void test_encoded_round_trip_pcmu()
     tx.end();
 }
 
+static void test_encoded_payload_types()
+{
+    struct Case
+    {
+        uint8_t pt;
+        uint32_t clock;
+        uint32_t increment;
+        uint16_t port;
+        const char *tag;
+    };
+
+    const Case cases[] = {
+        {static_cast<uint8_t>(pcmflowudp::RtpPayloadType::PCMA), 8000, 160, kPort + 20, "pcma"},
+        {static_cast<uint8_t>(pcmflowudp::RtpPayloadType::G722), 8000, 160, kPort + 21, "g722"},
+        {96, 48000, 960, kPort + 22, "opus96"},
+    };
+
+    for (size_t c = 0; c < sizeof(cases) / sizeof(cases[0]); ++c)
+    {
+        WiFiUDP txUdp, rxUdp;
+        EXPECT_TRUE(cases[c].tag, txUdp.begin(0) == 1);
+
+        RtpReceiver rx(rxUdp);
+        RtpSender tx(txUdp);
+
+        EXPECT_TRUE("ptype/rx-begin", rx.begin(cases[c].port));
+        EXPECT_TRUE("ptype/tx-init",
+                    tx.begin(IPAddress(127, 0, 0, 1), cases[c].port, 0xABCD0000 + c));
+        EXPECT_TRUE("ptype/setPT", tx.setPayloadType(cases[c].pt, cases[c].clock));
+        tx.setTimestampIncrement(cases[c].increment);
+
+        uint8_t payload[12];
+        for (size_t i = 0; i < sizeof(payload); ++i)
+            payload[i] = static_cast<uint8_t>(cases[c].pt + i);
+
+        const uint32_t ts0 = tx.timestamp();
+        EXPECT_TRUE("ptype/write", tx.writeEncoded(payload, sizeof(payload)));
+        EXPECT_TRUE("ptype/poll", pumpUntilProgress(rx));
+        EXPECT_TRUE("ptype/not-pcm", !rx.isPcm());
+        EXPECT_EQ("ptype/pt", cases[c].pt, rx.payloadType());
+        EXPECT_EQ("ptype/ts", (long)ts0, (long)rx.timestamp());
+
+        uint8_t out[sizeof(payload)] = {0};
+        const size_t got = rx.readEncoded(out, sizeof(out));
+        EXPECT_EQ("ptype/read", (long)sizeof(payload), (long)got);
+        EXPECT_TRUE("ptype/payload-eq", memcmp(out, payload, sizeof(payload)) == 0);
+
+        rx.end();
+        tx.end();
+    }
+}
+
 static void test_sequence_and_marker()
 {
     // Send 3 packets, verify seq increments by 1 each time and marker
@@ -253,6 +305,7 @@ void setup()
     test_l16_mono_round_trip();
     test_l16_stereo_round_trip();
     test_encoded_round_trip_pcmu();
+    test_encoded_payload_types();
     test_sequence_and_marker();
 
     Serial.print("TEST done ");

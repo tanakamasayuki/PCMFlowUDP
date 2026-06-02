@@ -23,6 +23,8 @@ uv run --env-file .env pytest manual/core2_voicemeeter_to_speaker/core2_voicemee
 uv run --env-file .env pytest manual/core2_rtp_speaker/core2_rtp_speaker.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_g711_gstreamer/core2_rtp_g711_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_g722_gstreamer/core2_rtp_g722_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
 ```
 
@@ -43,7 +45,7 @@ Use pytest + Python helpers for reference checks, and run real-application inter
 On Linux:
 
 ```sh
-sudo apt install ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad wireshark tshark
+sudo apt install ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav wireshark tshark
 ```
 
 For VBAN real-application testing, use a Windows PC with VB-Audio VBAN Receptor / Voicemeeter. Keep Core2 and the PC on the same LAN, and allow UDP 6980 for VBAN and UDP 5004 for the RTP examples in the PC firewall.
@@ -60,7 +62,10 @@ For VBAN real-application testing, use a Windows PC with VB-Audio VBAN Receptor 
 | `core2_voicemeeter_to_speaker/` | Core2 speaker plays a VBAN stream sent by Voicemeeter | M5Stack Core2 + Windows PC + Voicemeeter | Added |
 | `core2_rtp_speaker/` | Python sends RTP audio to the Core2 speaker | M5Stack Core2 + Wi-Fi AP | Added |
 | `core2_rtp_mic/` | Python receives RTP audio from the Core2 mic | M5Stack Core2 + Wi-Fi AP | Added |
-| `core2_rtp_gstreamer/` | Core2 interoperates with GStreamer, ffmpeg, VLC, or another RTP tool | M5Stack Core2 + Linux PC or RTP-capable software | Added |
+| `core2_rtp_gstreamer/` | Core2 plays RTP/L16 sent by GStreamer | M5Stack Core2 + Linux PC | Added |
+| `core2_rtp_g711_gstreamer/` | Core2 decodes and plays RTP/PCMU sent by GStreamer | M5Stack Core2 + Linux PC | Added |
+| `core2_rtp_g722_gstreamer/` | Core2 decodes and plays RTP/G.722 sent by GStreamer | M5Stack Core2 + Linux PC | Added |
+| RTP/Opus interop | Promote to required after build/runtime measurement on Core2, because Opus has higher CPU/RAM cost and RTP clock-rate 48000 | M5Stack Core2 + Linux PC | Optional |
 | `core2_stability/` | 30-minute UDP audio stream with drop, heap, and Wi-Fi checks | M5Stack Core2 + Wi-Fi AP | Added |
 
 ## Real-Application Command Examples
@@ -79,10 +84,24 @@ Send RTP/PCMU from PC to Core2:
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
   ! audio/x-raw,rate=8000,channels=1 \
+  ! audioconvert \
   ! mulawenc \
   ! rtppcmupay pt=0 \
   ! udpsink host=<core2-ip> port=5004
 ```
+
+Send RTP/G.722 from PC to Core2:
+
+```sh
+gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! audio/x-raw,format=S16LE,rate=16000,channels=1 \
+  ! audioconvert \
+  ! avenc_g722 \
+  ! rtpg722pay pt=9 \
+  ! udpsink host=<core2-ip> port=5004
+```
+
+RTP/Opus is optional for now. GStreamer uses an RTP clock-rate of 48000 for Opus, so the Core2 decoder configuration and runtime load should be measured before making it a required manual test.
 
 Receive RTP/L16 from Core2 and play it on the PC:
 

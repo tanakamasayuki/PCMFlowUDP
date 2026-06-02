@@ -67,6 +67,8 @@ uv run --env-file .env pytest manual/core2_voicemeeter_to_speaker/core2_voicemee
 uv run --env-file .env pytest manual/core2_rtp_speaker/core2_rtp_speaker.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_g711_gstreamer/core2_rtp_g711_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_g722_gstreamer/core2_rtp_g722_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
 ```
 
@@ -97,9 +99,11 @@ Core2 の FQBN は `esp32:esp32:m5stack_core2` に固定する。Core2 のデバ
 | VBAN PCM 基準 | PCM16 LE | 16000 Hz | 1 | 256 frames | 既存 example / test と同じ。VBAN table 対応、Core2 mic/speaker と Wi-Fi 負荷のバランスが良い |
 | RTP L16 基準 | PCM16 BE on wire, PT 11 | 16000 Hz | 1 | 320 frames (20 ms) | `RtpSender` の既定 packetization と一致。GStreamer でも扱いやすい |
 | RTP PCMU 基準 | G.711 μ-law, PT 0 | 8000 Hz | 1 | 160 samples (20 ms) | RFC 3551 の static payload type と既存 `RtpVoipG711` example に合わせる |
+| RTP G.722 基準 | G.722, PT 9 | 16000 Hz audio / 8000 Hz RTP clock | 1 | 160 bytes (20 ms) | RFC 3551 の G.722 timestamp 慣行と `PCMFlowG722` の 16 kHz PCM API に合わせる |
+| RTP Opus 補助 | Opus, dynamic PT 96 | 48000 Hz RTP clock | 1 | 20 ms packet | Core2 の CPU/RAM 負荷を実測してから必須化判断 |
 | VBAN / RTP stereo 補助 | PCM16 | 48000 Hz | 2 | 64-256 frames | 実ソフト互換の追加確認用。最初の Core2 実装対象にはしない |
 
-Core2 manual テストの初期実装は mono のみを必須にする。stereo、48 kHz、Opus、G.722 は標準 RTP ツール相互運用の拡張確認として後続に回す。
+Core2 manual テストの codec 相互接続は G711 と G722 を必須候補にする。Opus は codec ライブラリ側の自動テストを前提にし、この repo では Core2 build/runtime 負荷を確認してから必須化する。
 
 スピーカー系テストの合否は当面、人間による確認を正式な判定方法にする。外部オーディオループバック機器がある環境では RMS / peak / 周波数検出で自動判定を追加できるが、必須条件にはしない。
 
@@ -115,7 +119,10 @@ Core2 manual テストの初期実装は mono のみを必須にする。stereo�
 | `core2_voicemeeter_to_speaker/` | Voicemeeter から送った VBAN stream を Core2 が受信し、スピーカーで再生できることを確認する | DUT 統計 + 音声確認 | 追加済み |
 | `core2_rtp_speaker/` | RTP payload を Core2 が受信し、スピーカーから再生できることを確認する | packet 受信は自動、音声は人間確認 | 追加済み |
 | `core2_rtp_mic/` | Core2 のマイク入力を RTP payload として Python が受信できることを確認する | Python で sequence/timestamp/RMS 判定 | 追加済み |
-| `core2_rtp_gstreamer/` | GStreamer/ffmpeg/VLC など標準 RTP ツールと Core2 が相互運用できることを確認する | tool log + DUT 統計 + 音声確認 | 追加済み |
+| `core2_rtp_gstreamer/` | GStreamer から送った RTP/L16 を Core2 が再生できることを確認する | tool log + DUT 統計 + 音声確認 | 追加済み |
+| `core2_rtp_g711_gstreamer/` | GStreamer から送った RTP/PCMU を Core2 が G711 decode して再生できることを確認する | tool log + DUT 統計 + 音声確認 | 追加済み |
+| `core2_rtp_g722_gstreamer/` | GStreamer から送った RTP/G.722 を Core2 が G722 decode して再生できることを確認する | tool log + DUT 統計 + 音声確認 | 追加済み |
+| RTP/Opus interop | RTP/Opus dynamic PT を Core2 で decode/playback できるか確認する | build size + runtime heap + 音声確認 | optional |
 | `core2_stability/` | Wi-Fi と UDP 送受信を 30 分継続し、drop、heap 低下、再接続不能がないことを確認する | シリアル統計を自動判定 | 追加済み |
 
 ## 各テストの詳細
@@ -269,7 +276,7 @@ Core2 マイク入力を RTP sender 経由で PC 側 Python が受信できる�
 ### core2_rtp_gstreamer
 
 目的:
-標準 RTP ツールと Core2 の相互運用を確認する。まず L16 mono を基準にし、次に PCMU/PCMA/G.722 など codec payload を確認する。
+GStreamer から送った RTP/L16 mono を Core2 が受信し、PCMFlowUDP の L16 path で再生できることを確認する。codec payload は `core2_rtp_g711_gstreamer/` と `core2_rtp_g722_gstreamer/` で分けて確認する。
 
 推奨環境:
 - Linux PC: GStreamer、ffmpeg、ffplay、Wireshark/tshark
@@ -285,11 +292,17 @@ gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
   ! udpsink host=<core2-ip> port=5004
 ```
 
+### core2_rtp_g711_gstreamer
+
+目的:
+GStreamer から送った RTP/PCMU を Core2 が受信し、`PCMFlowG711` で decode して再生できることを確認する。
+
 PC から Core2 speaker へ PCMU RTP を送る例:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
   ! audio/x-raw,rate=8000,channels=1 \
+  ! audioconvert \
   ! mulawenc \
   ! rtppcmupay pt=0 \
   ! udpsink host=<core2-ip> port=5004
@@ -299,6 +312,22 @@ gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
 
 ```sh
 ffmpeg -re -i input.wav -ac 1 -ar 8000 -c:a pcm_mulaw -f rtp rtp://<core2-ip>:5004
+```
+
+### core2_rtp_g722_gstreamer
+
+目的:
+GStreamer から送った RTP/G.722 を Core2 が受信し、`PCMFlowG722` で decode して再生できることを確認する。
+
+PC から Core2 speaker へ G.722 RTP を送る例:
+
+```sh
+gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! audio/x-raw,format=S16LE,rate=16000,channels=1 \
+  ! audioconvert \
+  ! avenc_g722 \
+  ! rtpg722pay pt=9 \
+  ! udpsink host=<core2-ip> port=5004
 ```
 
 Core2 mic から PC へ RTP/L16 を送り、GStreamer で再生する例:
