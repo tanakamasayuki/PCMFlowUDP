@@ -111,8 +111,8 @@ Speaker tests are officially judged by human confirmation for now. An external a
 | `core2_raw_udp_ping/` | Python sends a RAW UDP packet to the DUT and receives an ACK | Fully automated | Added |
 | `core2_vban_speaker/` | Python sends VBAN PCM16 sine wave packets to the Core2 speaker | Packet checks + human audio check | Added |
 | `core2_vban_mic/` | Python receives non-silent VBAN PCM16 from the Core2 mic | Python RMS/peak checks | Added |
-| `core2_vban_receptor/` | Core2 mic streams to VBAN Receptor / Voicemeeter | DUT stats + app UI/audio check | Planned |
-| `core2_voicemeeter_to_speaker/` | Voicemeeter sends VBAN stream to the Core2 speaker | DUT stats + audio check | Planned |
+| `core2_vban_receptor/` | Core2 mic streams to VBAN Receptor / Voicemeeter | DUT stats + app UI/audio check | Added |
+| `core2_voicemeeter_to_speaker/` | Voicemeeter sends VBAN stream to the Core2 speaker | DUT stats + audio check | Added |
 | `core2_rtp_speaker/` | Core2 receives RTP payload and plays it through the speaker | Packet checks + human audio check | Added |
 | `core2_rtp_mic/` | Python receives RTP payload from the Core2 mic | Python sequence/timestamp/RMS checks | Added |
 | `core2_rtp_gstreamer/` | Verify interoperability with GStreamer, ffmpeg, VLC, or similar RTP tools | Tool logs + DUT stats + audio check | Planned |

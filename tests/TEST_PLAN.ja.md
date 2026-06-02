@@ -111,8 +111,8 @@ Core2 manual テストの初期実装は mono のみを必須にする。stereo�
 | `core2_raw_udp_ping/` | Python から DUT へ RAW UDP packet を送り、DUT から ACK が返ることを確認する | 完全自動 | 追加済み |
 | `core2_vban_speaker/` | Python が生成した VBAN PCM16 sine wave を Core2 が受信し、スピーカーから再生できることを確認する | packet 受信は自動、音声は人間確認 | 追加済み |
 | `core2_vban_mic/` | Core2 のマイク入力を VBAN PCM16 として Python が受信し、無音でないサンプルを観測できることを確認する | Python で RMS/peak 判定 | 追加済み |
-| `core2_vban_receptor/` | Core2 のマイク入力を VBAN Receptor / Voicemeeter に送り、実ソフトで受信・再生できることを確認する | DUT 統計 + 実ソフト UI/音声確認 | 計画 |
-| `core2_voicemeeter_to_speaker/` | Voicemeeter から送った VBAN stream を Core2 が受信し、スピーカーで再生できることを確認する | DUT 統計 + 音声確認 | 計画 |
+| `core2_vban_receptor/` | Core2 のマイク入力を VBAN Receptor / Voicemeeter に送り、実ソフトで受信・再生できることを確認する | DUT 統計 + 実ソフト UI/音声確認 | 追加済み |
+| `core2_voicemeeter_to_speaker/` | Voicemeeter から送った VBAN stream を Core2 が受信し、スピーカーで再生できることを確認する | DUT 統計 + 音声確認 | 追加済み |
 | `core2_rtp_speaker/` | RTP payload を Core2 が受信し、スピーカーから再生できることを確認する | packet 受信は自動、音声は人間確認 | 追加済み |
 | `core2_rtp_mic/` | Core2 のマイク入力を RTP payload として Python が受信できることを確認する | Python で sequence/timestamp/RMS 判定 | 追加済み |
 | `core2_rtp_gstreamer/` | GStreamer/ffmpeg/VLC など標準 RTP ツールと Core2 が相互運用できることを確認する | tool log + DUT 統計 + 音声確認 | 計画 |
