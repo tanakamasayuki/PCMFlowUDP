@@ -9,6 +9,7 @@ Why manual:
 
 import re
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
@@ -53,13 +54,14 @@ def test_core2_vban_mic(dut):
             timeout=10,
         )
 
-        for _ in range(10):
-            received = udp.recv(timeout=2)
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline and len(packets) < 120:
+            received = udp.recv(timeout=0.5)
             if received is None:
-                break
+                continue
             packets.append(received[0])
 
-    assert len(packets) >= 3, f"got {len(packets)} VBAN packets, expected at least 3"
+    assert len(packets) >= 80, f"got {len(packets)} VBAN packets, expected at least 80"
 
     last_counter = -1
     max_rms = 0.0

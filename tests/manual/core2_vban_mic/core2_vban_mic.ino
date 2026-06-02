@@ -15,7 +15,7 @@ static constexpr unsigned long kWifiTimeoutMs = 60000;
 static constexpr uint16_t kControlPort = 49241;
 static constexpr uint32_t kSampleRate = 16000;
 static constexpr size_t kFrames = 256;
-static constexpr size_t kPacketsToSend = 25;
+static constexpr size_t kPacketsToSend = 320;
 static const char *kStreamName = "Core2Mic";
 
 WiFiUDP g_udp;

@@ -15,7 +15,7 @@ static constexpr unsigned long kWifiTimeoutMs = 60000;
 static constexpr uint16_t kControlPort = 49242;
 static constexpr uint32_t kSampleRate = 16000;
 static constexpr size_t kFrames = 320;
-static constexpr size_t kPacketsToSend = 20;
+static constexpr size_t kPacketsToSend = 250;
 static constexpr uint32_t kSsrc = 0xC02E5002;
 
 WiFiUDP g_udp;

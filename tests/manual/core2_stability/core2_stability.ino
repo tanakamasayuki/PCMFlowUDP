@@ -16,6 +16,7 @@ static constexpr uint16_t kRxPort = 49250;
 static constexpr uint32_t kSampleRate = 16000;
 static constexpr size_t kMaxFrames = 256;
 static constexpr unsigned long kStatsIntervalMs = 5000;
+static const char *kStreamName = "Stable";
 
 WiFiUDP g_udp;
 VbanReceiver g_rx(g_udp);
@@ -111,7 +112,7 @@ void setup()
         return;
     }
 
-    if (!g_rx.begin(kRxPort))
+    if (!g_rx.begin(kRxPort, kStreamName))
     {
         Serial.println("FAIL rx-begin");
         M5.Display.println("RX begin failed");

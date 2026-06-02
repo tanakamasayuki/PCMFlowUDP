@@ -15,6 +15,7 @@ static constexpr unsigned long kWifiTimeoutMs = 60000;
 static constexpr uint16_t kVbanPort = 6980;
 static constexpr uint32_t kExpectedRate = 16000;
 static constexpr size_t kMaxFrames = 256;
+static const char *kStreamName = "PcToCore2";
 
 WiFiUDP g_udp;
 VbanReceiver g_rx(g_udp);
@@ -85,7 +86,7 @@ void setup()
     M5.Speaker.begin();
     M5.Speaker.setVolume(160);
 
-    if (!g_rx.begin(kVbanPort))
+    if (!g_rx.begin(kVbanPort, kStreamName))
     {
         Serial.println("FAIL rx-begin");
         M5.Display.println("RX begin failed");
@@ -98,7 +99,8 @@ void setup()
     Serial.print(localIp);
     Serial.print(" port=");
     Serial.print(kVbanPort);
-    Serial.println(" stream=PcToCore2");
+    Serial.print(" stream=");
+    Serial.println(kStreamName);
 }
 
 void loop()
@@ -125,7 +127,9 @@ void loop()
         M5.Speaker.playRaw(samples, got, fmt.sampleRate, false, 1, 0, false);
     }
 
-    Serial.print("VBAN-RX stream=PcToCore2 rate=");
+    Serial.print("VBAN-RX stream=");
+    Serial.print(g_rx.currentStreamName());
+    Serial.print(" rate=");
     Serial.print(fmt.sampleRate);
     Serial.print(" channels=");
     Serial.print(fmt.channels);

@@ -40,7 +40,7 @@ def test_core2_rtp_speaker(dut):
 
     sample_rate = 16000
     frames = 320
-    packets = 25
+    packets = 250
     ssrc = 0xC02E5001
 
     with RawUdp(bind_port=0) as udp:

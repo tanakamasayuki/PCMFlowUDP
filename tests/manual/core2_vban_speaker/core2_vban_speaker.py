@@ -41,7 +41,7 @@ def test_core2_vban_speaker(dut):
 
     sample_rate = 16000
     frames = 256
-    packets = 30
+    packets = 320
     with RawUdp(bind_port=0) as udp:
         for seq in range(packets):
             samples = [
