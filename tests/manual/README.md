@@ -15,6 +15,7 @@ Manual test Python files do not use the `test_` prefix, so pytest does not colle
 ```sh
 cd tests
 uv run --env-file .env pytest manual/core2_smoke/core2_smoke.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_raw_udp_ping/core2_raw_udp_ping.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_vban_speaker/core2_vban_speaker.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_vban_mic/core2_vban_mic.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_vban_receptor/core2_vban_receptor.py -v -s --profile m5stack_core2
@@ -51,7 +52,7 @@ For VBAN real-application testing, use a Windows PC with VB-Audio VBAN Receptor 
 | Test | Description | Required hardware | Status |
 |---|---|---|---|
 | `core2_smoke/` | Core2 build, flash, serial, LCD, buttons, and Wi-Fi | M5Stack Core2 | Added |
-| `core2_raw_udp_ping/` | RAW UDP round trip between Python and Core2 | M5Stack Core2 + Wi-Fi AP | Planned |
+| `core2_raw_udp_ping/` | RAW UDP round trip between Python and Core2 | M5Stack Core2 + Wi-Fi AP | Added |
 | `core2_vban_speaker/` | Python sends VBAN PCM16 to the Core2 speaker | M5Stack Core2 + Wi-Fi AP | Planned |
 | `core2_vban_mic/` | Python receives VBAN PCM16 from the Core2 mic | M5Stack Core2 + Wi-Fi AP | Planned |
 | `core2_vban_receptor/` | VBAN Receptor / Voicemeeter receives and plays Core2 mic audio | M5Stack Core2 + Windows PC + VBAN Receptor / Voicemeeter | Planned |

@@ -59,6 +59,7 @@ For VBAN real-application testing, use Windows with VBAN Receptor or Voicemeeter
 ```sh
 cd tests
 uv run --env-file .env pytest manual/core2_smoke/core2_smoke.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_raw_udp_ping/core2_raw_udp_ping.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_vban_speaker/core2_vban_speaker.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_vban_mic/core2_vban_mic.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_vban_receptor/core2_vban_receptor.py -v -s --profile m5stack_core2
@@ -106,7 +107,7 @@ Speaker tests are officially judged by human confirmation for now. An external a
 | Test | Purpose | Judgment | Status |
 |---|---|---|---|
 | `core2_smoke/` | Verify Core2 build, flash, serial, LCD, buttons, and Wi-Fi | `dut.expect()` + button checks | Added |
-| `core2_raw_udp_ping/` | Python sends a RAW UDP packet to the DUT and receives an ACK | Fully automated | Planned |
+| `core2_raw_udp_ping/` | Python sends a RAW UDP packet to the DUT and receives an ACK | Fully automated | Added |
 | `core2_vban_speaker/` | Python sends VBAN PCM16 sine wave packets to the Core2 speaker | Packet checks + human audio check | Planned |
 | `core2_vban_mic/` | Python receives non-silent VBAN PCM16 from the Core2 mic | Python RMS/peak checks | Planned |
 | `core2_vban_receptor/` | Core2 mic streams to VBAN Receptor / Voicemeeter | DUT stats + app UI/audio check | Planned |

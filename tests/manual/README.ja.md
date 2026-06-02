@@ -15,6 +15,7 @@ M5Stack Core2 など、実ハードウェアと人間による観測が必要な
 ```sh
 cd tests
 uv run --env-file .env pytest manual/core2_smoke/core2_smoke.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_raw_udp_ping/core2_raw_udp_ping.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_vban_speaker/core2_vban_speaker.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_vban_mic/core2_vban_mic.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_vban_receptor/core2_vban_receptor.py -v -s --profile m5stack_core2
@@ -51,7 +52,7 @@ VBAN の実ソフト確認は Windows PC + VB-Audio VBAN Receptor / Voicemeeter 
 | テスト | 説明 | 必要なハードウェア | 状態 |
 |---|---|---|---|
 | `core2_smoke/` | Core2 のビルド、フラッシュ、Serial、LCD、ボタン、Wi-Fi 接続確認 | M5Stack Core2 | 追加済み |
-| `core2_raw_udp_ping/` | Python と Core2 の RAW UDP 往復確認 | M5Stack Core2 + Wi-Fi AP | 計画 |
+| `core2_raw_udp_ping/` | Python と Core2 の RAW UDP 往復確認 | M5Stack Core2 + Wi-Fi AP | 追加済み |
 | `core2_vban_speaker/` | Python から送った VBAN PCM16 を Core2 スピーカーで再生 | M5Stack Core2 + Wi-Fi AP | 計画 |
 | `core2_vban_mic/` | Core2 マイク入力を VBAN PCM16 として Python が受信 | M5Stack Core2 + Wi-Fi AP | 計画 |
 | `core2_vban_receptor/` | Core2 マイク入力を VBAN Receptor / Voicemeeter で受信・再生 | M5Stack Core2 + Windows PC + VBAN Receptor / Voicemeeter | 計画 |
