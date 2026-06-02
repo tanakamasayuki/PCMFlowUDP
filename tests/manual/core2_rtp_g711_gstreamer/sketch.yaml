@@ -8,7 +8,7 @@ profiles:
       - dir: ../../../
       - PCMFlow (0.2.1)
       - PCMFlowG711 (0.2.0)
-      - M5Unified (0.2.16)
+      - M5Unified (0.2.17)
       - M5GFX (0.2.22)
 
   m5stack_cores3:
@@ -20,7 +20,7 @@ profiles:
       - dir: ../../../
       - PCMFlow (0.2.1)
       - PCMFlowG711 (0.2.0)
-      - M5Unified (0.2.16)
+      - M5Unified (0.2.17)
       - M5GFX (0.2.22)
 
 default_profile: m5stack_core2
