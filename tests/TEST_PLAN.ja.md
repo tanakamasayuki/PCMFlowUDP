@@ -2,9 +2,9 @@
 
 > English: [TEST_PLAN.md](TEST_PLAN.md)
 
-この文書は、M5Stack Core2 を使って PCMFlowUDP を実機検証するためのテスト計画です。
+この文書は、M5Stack Core2 / CoreS3 を使って PCMFlowUDP を実機検証するためのテスト計画です。
 
-既存の `tests/*_python_loopback/` は ESP32 DUT と Python peer の UDP 相互運用を自動検証する。Core2 で追加する価値は、Core2 固有の入出力、つまり I2S スピーカー、マイク、LCD、ボタン、バッテリー動作、Wi-Fi 実環境での連続動作を含めた確認にある。そのため Core2 テストは `tests/manual/` に配置し、pytest の自動収集対象にはしない。
+既存の `tests/*_python_loopback/` は ESP32 DUT と Python peer の UDP 相互運用を自動検証する。Core2/CoreS3 で追加する価値は、M5Stack 固有の入出力、つまり I2S スピーカー、マイク、LCD、ボタン、バッテリー動作、Wi-Fi 実環境での連続動作を含めた確認にある。そのため実機テストは `tests/manual/` に配置し、pytest の自動収集対象にはしない。
 
 ## 方針
 
@@ -13,11 +13,11 @@
 - 実行時は `-s` を付け、シリアルログ、LCD 表示、音声、ボタン操作をオペレーターが確認できるようにする。
 - ソフトウェアで判定できるものは `dut.expect()` で自動判定する。音の聴感、画面表示、物理ボタンなどは最小限の `y/n` 入力で確認する。
 - Wi-Fi 設定は既存テストと同じく `.env` から `WIFI_SSID` / `WIFI_PASSWORD` を build define として渡す。
-- Core2 依存テストは `sketch.yaml` の profile を `m5stack_core2` に分け、通常の `esp32` profile と混ぜない。
+- M5Stack 依存テストは `sketch.yaml` の profile を `m5stack_core2` / `m5stack_cores3` に分け、通常の `esp32` profile と混ぜない。
 
 ## 必要な機材
 
-- M5Stack Core2
+- M5Stack Core2 または CoreS3
 - USB-C ケーブル
 - 2.4 GHz Wi-Fi AP
 - pytest 実行用 PC
@@ -41,7 +41,7 @@ Core2 manual テストでは、まず pytest + Python helper で packet level �
 Linux 開発機では次のパッケージを入れておく。
 
 ```sh
-sudo apt install ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad wireshark tshark
+sudo apt install ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav wireshark tshark
 ```
 
 Windows では VBAN Receptor / Voicemeeter を入れ、必要なら Wireshark と ffmpeg を追加する。VBAN の実ソフト確認は Windows を推奨環境にする。Linux/macOS では pytest helper と packet capture を主経路にし、RTP は GStreamer/ffmpeg で確認する。
@@ -69,10 +69,11 @@ uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --prof
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g711_gstreamer/core2_rtp_g711_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g722_gstreamer/core2_rtp_g722_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_opus_gstreamer/core2_rtp_opus_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
 ```
 
-`--profile m5stack_core2` は各 `sketch.yaml` で次のように定義する。
+CoreS3 で実行する場合は `--profile m5stack_cores3` を指定する。各 `sketch.yaml` は Core2/CoreS3 の profile を持つ。
 
 ```yaml
 profiles:
@@ -87,10 +88,21 @@ profiles:
       - M5Unified (0.2.16)
       - M5GFX (0.2.22)
 
+  m5stack_cores3:
+    fqbn: esp32:esp32:m5stack_cores3
+    platforms:
+      - platform: esp32:esp32 (3.3.8)
+        platform_index_url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+    libraries:
+      - dir: ../../../
+      - PCMFlow (0.2.1)
+      - M5Unified (0.2.16)
+      - M5GFX (0.2.22)
+
 default_profile: m5stack_core2
 ```
 
-Core2 の FQBN は `esp32:esp32:m5stack_core2` に固定する。Core2 のデバイス制御は `M5Unified` を使い、表示系依存として `M5GFX` も pin する。
+Core2 の FQBN は `esp32:esp32:m5stack_core2`、CoreS3 の FQBN は `esp32:esp32:m5stack_cores3` に固定する。デバイス制御は `M5Unified` を使い、表示系依存として `M5GFX` も pin する。
 
 ## 確定した音声パラメータ
 
@@ -100,10 +112,10 @@ Core2 の FQBN は `esp32:esp32:m5stack_core2` に固定する。Core2 のデバ
 | RTP L16 基準 | PCM16 BE on wire, PT 11 | 16000 Hz | 1 | 320 frames (20 ms) | `RtpSender` の既定 packetization と一致。GStreamer でも扱いやすい |
 | RTP PCMU 基準 | G.711 μ-law, PT 0 | 8000 Hz | 1 | 160 samples (20 ms) | RFC 3551 の static payload type と既存 `RtpVoipG711` example に合わせる |
 | RTP G.722 基準 | G.722, PT 9 | 16000 Hz audio / 8000 Hz RTP clock | 1 | 160 bytes (20 ms) | RFC 3551 の G.722 timestamp 慣行と `PCMFlowG722` の 16 kHz PCM API に合わせる |
-| RTP Opus 補助 | Opus, dynamic PT 96 | 48000 Hz RTP clock | 1 | 20 ms packet | Core2 の CPU/RAM 負荷を実測してから必須化判断 |
+| RTP Opus 基準 | Opus, dynamic PT 96 | 48000 Hz RTP clock | 1 | 20 ms packet | GStreamer 標準の RTP/Opus と `PCMFlowOpus` の decode path を確認 |
 | VBAN / RTP stereo 補助 | PCM16 | 48000 Hz | 2 | 64-256 frames | 実ソフト互換の追加確認用。最初の Core2 実装対象にはしない |
 
-Core2 manual テストの codec 相互接続は G711 と G722 を必須候補にする。Opus は codec ライブラリ側の自動テストを前提にし、この repo では Core2 build/runtime 負荷を確認してから必須化する。
+manual テストの codec 相互接続は G711、G722、Opus を対象にする。codec の詳細な正しさは各 codec ライブラリ側の自動テストに任せ、この repo では RTP payload として外部ソフトから受けて decode/playback できることを確認する。
 
 スピーカー系テストの合否は当面、人間による確認を正式な判定方法にする。外部オーディオループバック機器がある環境では RMS / peak / 周波数検出で自動判定を追加できるが、必須条件にはしない。
 
@@ -122,7 +134,7 @@ Core2 manual テストの codec 相互接続は G711 と G722 を必須候補に
 | `core2_rtp_gstreamer/` | GStreamer から送った RTP/L16 を Core2 が再生できることを確認する | tool log + DUT 統計 + 音声確認 | 追加済み |
 | `core2_rtp_g711_gstreamer/` | GStreamer から送った RTP/PCMU を Core2 が G711 decode して再生できることを確認する | tool log + DUT 統計 + 音声確認 | 追加済み |
 | `core2_rtp_g722_gstreamer/` | GStreamer から送った RTP/G.722 を Core2 が G722 decode して再生できることを確認する | tool log + DUT 統計 + 音声確認 | 追加済み |
-| RTP/Opus interop | RTP/Opus dynamic PT を Core2 で decode/playback できるか確認する | build size + runtime heap + 音声確認 | optional |
+| `core2_rtp_opus_gstreamer/` | GStreamer から送った RTP/Opus dynamic PT を DUT が Opus decode して再生できることを確認する | build size + runtime heap + 音声確認 | 追加済み |
 | `core2_stability/` | Wi-Fi と UDP 送受信を 30 分継続し、drop、heap 低下、再接続不能がないことを確認する | シリアル統計を自動判定 | 追加済み |
 
 ## 各テストの詳細
@@ -276,7 +288,7 @@ Core2 マイク入力を RTP sender 経由で PC 側 Python が受信できる�
 ### core2_rtp_gstreamer
 
 目的:
-GStreamer から送った RTP/L16 mono を Core2 が受信し、PCMFlowUDP の L16 path で再生できることを確認する。codec payload は `core2_rtp_g711_gstreamer/` と `core2_rtp_g722_gstreamer/` で分けて確認する。
+GStreamer から送った RTP/L16 mono を DUT が受信し、PCMFlowUDP の L16 path で再生できることを確認する。codec payload は `core2_rtp_g711_gstreamer/`、`core2_rtp_g722_gstreamer/`、`core2_rtp_opus_gstreamer/` で分けて確認する。
 
 推奨環境:
 - Linux PC: GStreamer、ffmpeg、ffplay、Wireshark/tshark
@@ -328,6 +340,22 @@ gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
   ! avenc_g722 \
   ! rtpg722pay pt=9 \
   ! udpsink host=<core2-ip> port=5004
+```
+
+### core2_rtp_opus_gstreamer
+
+目的:
+GStreamer から送った RTP/Opus dynamic PT 96 を DUT が受信し、`PCMFlowOpus` で decode して再生できることを確認する。
+
+PC から DUT speaker へ Opus RTP を送る例:
+
+```sh
+gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! audio/x-raw,format=S16LE,rate=48000,channels=1 \
+  ! audioconvert \
+  ! opusenc bitrate=24000 frame-size=20 audio-type=voice \
+  ! rtpopuspay pt=96 \
+  ! udpsink host=<dut-ip> port=5004
 ```
 
 Core2 mic から PC へ RTP/L16 を送り、GStreamer で再生する例:
@@ -395,16 +423,18 @@ Core2 の Wi-Fi 実環境で UDP audio stream を継続したとき、heap 漏�
 4. `core2_vban_speaker/` と `core2_vban_mic/` を追加する。
 5. `core2_vban_receptor/` と `core2_voicemeeter_to_speaker/` を追加し、VB-Audio 実ソフトとの相互運用を確認する。
 6. `core2_rtp_speaker/` と `core2_rtp_mic/` を追加する。
-7. `core2_rtp_gstreamer/` を追加し、GStreamer/ffmpeg/VLC との相互運用を確認する。
+7. `core2_rtp_gstreamer/` と codec 別 GStreamer テストを追加し、GStreamer/ffmpeg/VLC との相互運用を確認する。
 8. `core2_stability/` を追加し、短時間の機能確認とは別に長時間統計を確認する。
 
 ## 決定事項
 
-- Core2 の推奨 Arduino FQBN は `esp32:esp32:m5stack_core2` とする。
-- Core2 の推奨デバイスライブラリは `M5Unified` とする。
-- Core2 profile では `M5Unified (0.2.16)` と `M5GFX (0.2.22)` を pin する。
-- Core2 manual テストの必須音声形式は `16000 Hz / mono / PCM16` とする。
+- Core2 の Arduino FQBN は `esp32:esp32:m5stack_core2`、CoreS3 は `esp32:esp32:m5stack_cores3` とする。
+- Core2/CoreS3 の推奨デバイスライブラリは `M5Unified` とする。
+- Core2/CoreS3 profile では `M5Unified (0.2.16)` と `M5GFX (0.2.22)` を pin する。
+- manual テストの基準 PCM 音声形式は `16000 Hz / mono / PCM16` とする。
 - VBAN の基準 chunk は `256 frames` とする。
 - RTP/L16 の基準 packet は `16000 Hz / 20 ms / 320 frames / PT 11` とする。
 - RTP/PCMU の基準 packet は `8000 Hz / 20 ms / 160 samples / PT 0` とする。
+- RTP/G.722 の基準 packet は `PT 9 / 20 ms / 160 bytes` とする。
+- RTP/Opus の基準 packet は `PT 96 / 48000 Hz RTP clock / 20 ms` とする。
 - スピーカー系テストは人間確認を正式判定とし、外部オーディオループバックによる自動判定は任意の拡張扱いにする。

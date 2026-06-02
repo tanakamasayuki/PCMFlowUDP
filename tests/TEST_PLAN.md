@@ -2,9 +2,9 @@
 
 > Japanese: [TEST_PLAN.ja.md](TEST_PLAN.ja.md)
 
-This document describes the M5Stack Core2 hardware test plan for PCMFlowUDP.
+This document describes the M5Stack Core2 / CoreS3 hardware test plan for PCMFlowUDP.
 
-The existing `tests/*_python_loopback/` tests already verify UDP interoperability between an ESP32 DUT and a Python peer. The Core2-specific value is in validating the hardware-facing path: I2S speaker, microphone, LCD, buttons, battery operation, and long-running Wi-Fi behavior. Core2 tests therefore live under `tests/manual/` and are not collected by pytest automatically.
+The existing `tests/*_python_loopback/` tests already verify UDP interoperability between an ESP32 DUT and a Python peer. The Core2/CoreS3-specific value is in validating the M5Stack hardware-facing path: I2S speaker, microphone, LCD, buttons, battery operation, and long-running Wi-Fi behavior. Hardware tests therefore live under `tests/manual/` and are not collected by pytest automatically.
 
 ## Policy
 
@@ -13,11 +13,11 @@ The existing `tests/*_python_loopback/` tests already verify UDP interoperabilit
 - Always run manual tests with `-s` so serial logs, prompts, display checks, audio checks, and button instructions are visible.
 - Use `dut.expect()` for anything software can judge. Use minimal `y` / `n` prompts only for audio, display, or physical controls.
 - Wi-Fi credentials are passed from `.env` as `WIFI_SSID` / `WIFI_PASSWORD` build defines, matching the existing tests.
-- Core2 tests use the `m5stack_core2` profile, separate from the generic `esp32` profile.
+- M5Stack tests use `m5stack_core2` / `m5stack_cores3` profiles, separate from the generic `esp32` profile.
 
 ## Required Hardware
 
-- M5Stack Core2
+- M5Stack Core2 or CoreS3
 - USB-C cable
 - 2.4 GHz Wi-Fi AP
 - PC running pytest
@@ -41,7 +41,7 @@ For Core2 manual tests, first use pytest + Python helpers to lock down packet-le
 On Linux development machines:
 
 ```sh
-sudo apt install ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad wireshark tshark
+sudo apt install ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav wireshark tshark
 ```
 
 For VBAN real-application testing, use Windows with VBAN Receptor or Voicemeeter. Linux/macOS can still use pytest helpers and packet captures for VBAN, and GStreamer/ffmpeg for RTP.
@@ -69,10 +69,11 @@ uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --prof
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g711_gstreamer/core2_rtp_g711_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g722_gstreamer/core2_rtp_g722_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_opus_gstreamer/core2_rtp_opus_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
 ```
 
-Each Core2 `sketch.yaml` should define:
+Use `--profile m5stack_cores3` for CoreS3. Each manual `sketch.yaml` should define both profiles:
 
 ```yaml
 profiles:
@@ -87,10 +88,21 @@ profiles:
       - M5Unified (0.2.16)
       - M5GFX (0.2.22)
 
+  m5stack_cores3:
+    fqbn: esp32:esp32:m5stack_cores3
+    platforms:
+      - platform: esp32:esp32 (3.3.8)
+        platform_index_url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+    libraries:
+      - dir: ../../../
+      - PCMFlow (0.2.1)
+      - M5Unified (0.2.16)
+      - M5GFX (0.2.22)
+
 default_profile: m5stack_core2
 ```
 
-Core2 uses the fixed FQBN `esp32:esp32:m5stack_core2`. Device control uses `M5Unified`, with `M5GFX` pinned as the display dependency.
+Core2 uses `esp32:esp32:m5stack_core2`; CoreS3 uses `esp32:esp32:m5stack_cores3`. Device control uses `M5Unified`, with `M5GFX` pinned as the display dependency.
 
 ## Final Audio Parameters
 
@@ -100,10 +112,10 @@ Core2 uses the fixed FQBN `esp32:esp32:m5stack_core2`. Device control uses `M5Un
 | RTP L16 reference | PCM16 BE on wire, PT 11 | 16000 Hz | 1 | 320 frames (20 ms) | Matches `RtpSender` default packetization and is easy to drive from GStreamer |
 | RTP PCMU reference | G.711 mu-law, PT 0 | 8000 Hz | 1 | 160 samples (20 ms) | Matches RFC 3551 static payload type behavior and the existing `RtpVoipG711` example |
 | RTP G.722 reference | G.722, PT 9 | 16000 Hz audio / 8000 Hz RTP clock | 1 | 160 bytes (20 ms) | Matches the RFC 3551 G.722 timestamp convention and `PCMFlowG722`'s 16 kHz PCM API |
-| RTP Opus extension | Opus, dynamic PT 96 | 48000 Hz RTP clock | 1 | 20 ms packet | Promote after measuring Core2 CPU/RAM cost |
+| RTP Opus reference | Opus, dynamic PT 96 | 48000 Hz RTP clock | 1 | 20 ms packet | Verifies GStreamer RTP/Opus into the `PCMFlowOpus` decode path |
 | VBAN / RTP stereo extension | PCM16 | 48000 Hz | 2 | 64-256 frames | Optional real-application compatibility check, not part of the first Core2 implementation |
 
-Codec interop on Core2 requires G711 and G722 first. Opus relies on the codec library's own automated tests for correctness and becomes required here only after Core2 build/runtime load is measured.
+Codec interop covers G711, G722, and Opus. Detailed codec correctness belongs to each codec library's own automated tests; this repo verifies that external RTP payloads can be received, decoded, and played.
 
 Speaker tests are officially judged by human confirmation for now. An external audio loopback device may add RMS, peak, or frequency checks later, but it is not required.
 
@@ -122,7 +134,7 @@ Speaker tests are officially judged by human confirmation for now. An external a
 | `core2_rtp_gstreamer/` | Verify Core2 playback of RTP/L16 sent by GStreamer | Tool logs + DUT stats + audio check | Added |
 | `core2_rtp_g711_gstreamer/` | Verify Core2 G711 decode/playback of RTP/PCMU sent by GStreamer | Tool logs + DUT stats + audio check | Added |
 | `core2_rtp_g722_gstreamer/` | Verify Core2 G722 decode/playback of RTP/G.722 sent by GStreamer | Tool logs + DUT stats + audio check | Added |
-| RTP/Opus interop | Verify whether Core2 can decode/play RTP/Opus dynamic PT reliably | Build size + runtime heap + audio check | Optional |
+| `core2_rtp_opus_gstreamer/` | Verify DUT Opus decode/playback of RTP/Opus dynamic PT sent by GStreamer | Build size + runtime heap + audio check | Added |
 | `core2_stability/` | Run UDP audio for 30 minutes and check drops, heap, and Wi-Fi state | Serial stats | Added |
 
 ## Real-Application Commands
@@ -141,9 +153,32 @@ Send RTP/PCMU from PC to Core2:
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
   ! audio/x-raw,rate=8000,channels=1 \
+  ! audioconvert \
   ! mulawenc \
   ! rtppcmupay pt=0 \
   ! udpsink host=<core2-ip> port=5004
+```
+
+Send RTP/G.722 from PC to DUT:
+
+```sh
+gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! audio/x-raw,format=S16LE,rate=16000,channels=1 \
+  ! audioconvert \
+  ! avenc_g722 \
+  ! rtpg722pay pt=9 \
+  ! udpsink host=<dut-ip> port=5004
+```
+
+Send RTP/Opus from PC to DUT:
+
+```sh
+gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! audio/x-raw,format=S16LE,rate=48000,channels=1 \
+  ! audioconvert \
+  ! opusenc bitrate=24000 frame-size=20 audio-type=voice \
+  ! rtpopuspay pt=96 \
+  ! udpsink host=<dut-ip> port=5004
 ```
 
 Send an audio file as RTP/PCMU:
@@ -187,16 +222,18 @@ tshark -i any -f "udp port 6980 or udp port 5004" -Y "udp.port == 6980 || rtp ||
 4. Add `core2_vban_speaker/` and `core2_vban_mic/`.
 5. Add `core2_vban_receptor/` and `core2_voicemeeter_to_speaker/`.
 6. Add `core2_rtp_speaker/` and `core2_rtp_mic/`.
-7. Add `core2_rtp_gstreamer/`.
+7. Add `core2_rtp_gstreamer/` and codec-specific GStreamer tests.
 8. Add `core2_stability/`.
 
 ## Decisions
 
-- Core2 FQBN: `esp32:esp32:m5stack_core2`.
-- Core2 device library: `M5Unified`.
-- Core2 profile pins `M5Unified (0.2.16)` and `M5GFX (0.2.22)`.
-- Required Core2 manual audio format: `16000 Hz / mono / PCM16`.
+- Core2 FQBN: `esp32:esp32:m5stack_core2`; CoreS3 FQBN: `esp32:esp32:m5stack_cores3`.
+- Core2/CoreS3 device library: `M5Unified`.
+- Core2/CoreS3 profiles pin `M5Unified (0.2.16)` and `M5GFX (0.2.22)`.
+- Required baseline PCM audio format: `16000 Hz / mono / PCM16`.
 - VBAN reference chunk: `256 frames`.
 - RTP/L16 reference packet: `16000 Hz / 20 ms / 320 frames / PT 11`.
 - RTP/PCMU reference packet: `8000 Hz / 20 ms / 160 samples / PT 0`.
+- RTP/G.722 reference packet: `PT 9 / 20 ms / 160 bytes`.
+- RTP/Opus reference packet: `PT 96 / 48000 Hz RTP clock / 20 ms`.
 - Speaker tests are officially human-judged. External audio loopback automation is optional.

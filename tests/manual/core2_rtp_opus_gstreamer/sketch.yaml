@@ -7,7 +7,7 @@ profiles:
     libraries:
       - dir: ../../../
       - PCMFlow (0.2.1)
-      - PCMFlowG711 (0.2.0)
+      - PCMFlowOpus (0.2.0)
       - M5Unified (0.2.16)
       - M5GFX (0.2.22)
 
@@ -19,7 +19,7 @@ profiles:
     libraries:
       - dir: ../../../
       - PCMFlow (0.2.1)
-      - PCMFlowG711 (0.2.0)
+      - PCMFlowOpus (0.2.0)
       - M5Unified (0.2.16)
       - M5GFX (0.2.22)
 

@@ -25,10 +25,11 @@ uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --prof
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g711_gstreamer/core2_rtp_g711_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g722_gstreamer/core2_rtp_g722_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_opus_gstreamer/core2_rtp_opus_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
 ```
 
-`-s` は必須です。シリアルログ、オペレーターへの確認プロンプト、テスト中の手順を端末に表示します。
+`-s` は必須です。シリアルログ、オペレーターへの確認プロンプト、テスト中の手順を端末に表示します。M5Stack CoreS3 で実行する場合は `--profile m5stack_cores3` を指定します。
 
 ## 推奨環境
 
@@ -54,19 +55,19 @@ VBAN の実ソフト確認は Windows PC + VB-Audio VBAN Receptor / Voicemeeter 
 
 | テスト | 説明 | 必要なハードウェア | 状態 |
 |---|---|---|---|
-| `core2_smoke/` | Core2 のビルド、フラッシュ、Serial、LCD、ボタン、Wi-Fi 接続確認 | M5Stack Core2 | 追加済み |
-| `core2_raw_udp_ping/` | Python と Core2 の RAW UDP 往復確認 | M5Stack Core2 + Wi-Fi AP | 追加済み |
-| `core2_vban_speaker/` | Python から送った VBAN PCM16 を Core2 スピーカーで再生 | M5Stack Core2 + Wi-Fi AP | 追加済み |
-| `core2_vban_mic/` | Core2 マイク入力を VBAN PCM16 として Python が受信 | M5Stack Core2 + Wi-Fi AP | 追加済み |
-| `core2_vban_receptor/` | Core2 マイク入力を VBAN Receptor / Voicemeeter で受信・再生 | M5Stack Core2 + Windows PC + VBAN Receptor / Voicemeeter | 追加済み |
-| `core2_voicemeeter_to_speaker/` | Voicemeeter から送った VBAN stream を Core2 スピーカーで再生 | M5Stack Core2 + Windows PC + Voicemeeter | 追加済み |
-| `core2_rtp_speaker/` | Python から送った RTP audio を Core2 スピーカーで再生 | M5Stack Core2 + Wi-Fi AP | 追加済み |
-| `core2_rtp_mic/` | Core2 マイク入力を RTP audio として Python が受信 | M5Stack Core2 + Wi-Fi AP | 追加済み |
-| `core2_rtp_gstreamer/` | GStreamer から送った RTP/L16 を Core2 が再生 | M5Stack Core2 + Linux PC | 追加済み |
-| `core2_rtp_g711_gstreamer/` | GStreamer から送った RTP/PCMU を Core2 が G711 decode して再生 | M5Stack Core2 + Linux PC | 追加済み |
-| `core2_rtp_g722_gstreamer/` | GStreamer から送った RTP/G.722 を Core2 が G722 decode して再生 | M5Stack Core2 + Linux PC | 追加済み |
-| RTP/Opus interop | Core2 の CPU/RAM と RTP clock-rate 48000 の影響を build/実測後に必須化判断 | M5Stack Core2 + Linux PC | optional |
-| `core2_stability/` | 30 分の UDP audio stream 継続、drop、heap、Wi-Fi 状態確認 | M5Stack Core2 + Wi-Fi AP | 追加済み |
+| `core2_smoke/` | Core2/CoreS3 のビルド、フラッシュ、Serial、LCD、ボタン、Wi-Fi 接続確認 | M5Stack Core2 または CoreS3 | 追加済み |
+| `core2_raw_udp_ping/` | Python と DUT の RAW UDP 往復確認 | M5Stack Core2/CoreS3 + Wi-Fi AP | 追加済み |
+| `core2_vban_speaker/` | Python から送った VBAN PCM16 を DUT スピーカーで再生 | M5Stack Core2/CoreS3 + Wi-Fi AP | 追加済み |
+| `core2_vban_mic/` | DUT マイク入力を VBAN PCM16 として Python が受信 | M5Stack Core2/CoreS3 + Wi-Fi AP | 追加済み |
+| `core2_vban_receptor/` | DUT マイク入力を VBAN Receptor / Voicemeeter で受信・再生 | M5Stack Core2/CoreS3 + Windows PC + VBAN Receptor / Voicemeeter | 追加済み |
+| `core2_voicemeeter_to_speaker/` | Voicemeeter から送った VBAN stream を DUT スピーカーで再生 | M5Stack Core2/CoreS3 + Windows PC + Voicemeeter | 追加済み |
+| `core2_rtp_speaker/` | Python から送った RTP audio を DUT スピーカーで再生 | M5Stack Core2/CoreS3 + Wi-Fi AP | 追加済み |
+| `core2_rtp_mic/` | DUT マイク入力を RTP audio として Python が受信 | M5Stack Core2/CoreS3 + Wi-Fi AP | 追加済み |
+| `core2_rtp_gstreamer/` | GStreamer から送った RTP/L16 を DUT が再生 | M5Stack Core2/CoreS3 + Linux PC | 追加済み |
+| `core2_rtp_g711_gstreamer/` | GStreamer から送った RTP/PCMU を DUT が G711 decode して再生 | M5Stack Core2/CoreS3 + Linux PC | 追加済み |
+| `core2_rtp_g722_gstreamer/` | GStreamer から送った RTP/G.722 を DUT が G722 decode して再生 | M5Stack Core2/CoreS3 + Linux PC | 追加済み |
+| `core2_rtp_opus_gstreamer/` | GStreamer から送った RTP/Opus を DUT が Opus decode して再生 | M5Stack Core2/CoreS3 + Linux PC | 追加済み |
+| `core2_stability/` | 30 分の UDP audio stream 継続、drop、heap、Wi-Fi 状態確認 | M5Stack Core2/CoreS3 + Wi-Fi AP | 追加済み |
 
 ## 実ソフトのコマンド例
 
@@ -101,7 +102,16 @@ gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
   ! udpsink host=<core2-ip> port=5004
 ```
 
-RTP/Opus の確認は optional です。GStreamer 側では RTP clock-rate が 48000 になるため、Core2 側の decoder 設定と負荷を実測してから必須テストへ昇格します。
+PC から DUT へ RTP/Opus を送る例:
+
+```sh
+gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! audio/x-raw,format=S16LE,rate=48000,channels=1 \
+  ! audioconvert \
+  ! opusenc bitrate=24000 frame-size=20 audio-type=voice \
+  ! rtpopuspay pt=96 \
+  ! udpsink host=<dut-ip> port=5004
+```
 
 Core2 から PC へ RTP/L16 を送り、PC 側で再生する例:
 

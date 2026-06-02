@@ -25,10 +25,11 @@ uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --prof
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g711_gstreamer/core2_rtp_g711_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g722_gstreamer/core2_rtp_g722_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_opus_gstreamer/core2_rtp_opus_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
 ```
 
-Always include `-s`; serial logs, operator prompts, and test instructions must be visible in the terminal.
+Always include `-s`; serial logs, operator prompts, and test instructions must be visible in the terminal. Use `--profile m5stack_cores3` for M5Stack CoreS3.
 
 ## Recommended Environment
 
@@ -54,19 +55,19 @@ For VBAN real-application testing, use a Windows PC with VB-Audio VBAN Receptor 
 
 | Test | Description | Required hardware | Status |
 |---|---|---|---|
-| `core2_smoke/` | Core2 build, flash, serial, LCD, buttons, and Wi-Fi | M5Stack Core2 | Added |
-| `core2_raw_udp_ping/` | RAW UDP round trip between Python and Core2 | M5Stack Core2 + Wi-Fi AP | Added |
-| `core2_vban_speaker/` | Python sends VBAN PCM16 to the Core2 speaker | M5Stack Core2 + Wi-Fi AP | Added |
-| `core2_vban_mic/` | Python receives VBAN PCM16 from the Core2 mic | M5Stack Core2 + Wi-Fi AP | Added |
-| `core2_vban_receptor/` | VBAN Receptor / Voicemeeter receives and plays Core2 mic audio | M5Stack Core2 + Windows PC + VBAN Receptor / Voicemeeter | Added |
-| `core2_voicemeeter_to_speaker/` | Core2 speaker plays a VBAN stream sent by Voicemeeter | M5Stack Core2 + Windows PC + Voicemeeter | Added |
-| `core2_rtp_speaker/` | Python sends RTP audio to the Core2 speaker | M5Stack Core2 + Wi-Fi AP | Added |
-| `core2_rtp_mic/` | Python receives RTP audio from the Core2 mic | M5Stack Core2 + Wi-Fi AP | Added |
-| `core2_rtp_gstreamer/` | Core2 plays RTP/L16 sent by GStreamer | M5Stack Core2 + Linux PC | Added |
-| `core2_rtp_g711_gstreamer/` | Core2 decodes and plays RTP/PCMU sent by GStreamer | M5Stack Core2 + Linux PC | Added |
-| `core2_rtp_g722_gstreamer/` | Core2 decodes and plays RTP/G.722 sent by GStreamer | M5Stack Core2 + Linux PC | Added |
-| RTP/Opus interop | Promote to required after build/runtime measurement on Core2, because Opus has higher CPU/RAM cost and RTP clock-rate 48000 | M5Stack Core2 + Linux PC | Optional |
-| `core2_stability/` | 30-minute UDP audio stream with drop, heap, and Wi-Fi checks | M5Stack Core2 + Wi-Fi AP | Added |
+| `core2_smoke/` | Core2/CoreS3 build, flash, serial, LCD, buttons, and Wi-Fi | M5Stack Core2 or CoreS3 | Added |
+| `core2_raw_udp_ping/` | RAW UDP round trip between Python and the DUT | M5Stack Core2/CoreS3 + Wi-Fi AP | Added |
+| `core2_vban_speaker/` | Python sends VBAN PCM16 to the DUT speaker | M5Stack Core2/CoreS3 + Wi-Fi AP | Added |
+| `core2_vban_mic/` | Python receives VBAN PCM16 from the DUT mic | M5Stack Core2/CoreS3 + Wi-Fi AP | Added |
+| `core2_vban_receptor/` | VBAN Receptor / Voicemeeter receives and plays DUT mic audio | M5Stack Core2/CoreS3 + Windows PC + VBAN Receptor / Voicemeeter | Added |
+| `core2_voicemeeter_to_speaker/` | DUT speaker plays a VBAN stream sent by Voicemeeter | M5Stack Core2/CoreS3 + Windows PC + Voicemeeter | Added |
+| `core2_rtp_speaker/` | Python sends RTP audio to the DUT speaker | M5Stack Core2/CoreS3 + Wi-Fi AP | Added |
+| `core2_rtp_mic/` | Python receives RTP audio from the DUT mic | M5Stack Core2/CoreS3 + Wi-Fi AP | Added |
+| `core2_rtp_gstreamer/` | DUT plays RTP/L16 sent by GStreamer | M5Stack Core2/CoreS3 + Linux PC | Added |
+| `core2_rtp_g711_gstreamer/` | DUT decodes and plays RTP/PCMU sent by GStreamer | M5Stack Core2/CoreS3 + Linux PC | Added |
+| `core2_rtp_g722_gstreamer/` | DUT decodes and plays RTP/G.722 sent by GStreamer | M5Stack Core2/CoreS3 + Linux PC | Added |
+| `core2_rtp_opus_gstreamer/` | DUT decodes and plays RTP/Opus sent by GStreamer | M5Stack Core2/CoreS3 + Linux PC | Added |
+| `core2_stability/` | 30-minute UDP audio stream with drop, heap, and Wi-Fi checks | M5Stack Core2/CoreS3 + Wi-Fi AP | Added |
 
 ## Real-Application Command Examples
 
@@ -101,7 +102,16 @@ gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
   ! udpsink host=<core2-ip> port=5004
 ```
 
-RTP/Opus is optional for now. GStreamer uses an RTP clock-rate of 48000 for Opus, so the Core2 decoder configuration and runtime load should be measured before making it a required manual test.
+Send RTP/Opus from PC to DUT:
+
+```sh
+gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! audio/x-raw,format=S16LE,rate=48000,channels=1 \
+  ! audioconvert \
+  ! opusenc bitrate=24000 frame-size=20 audio-type=voice \
+  ! rtpopuspay pt=96 \
+  ! udpsink host=<dut-ip> port=5004
+```
 
 Receive RTP/L16 from Core2 and play it on the PC:
 
