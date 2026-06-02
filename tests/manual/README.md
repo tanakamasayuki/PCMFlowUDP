@@ -60,8 +60,8 @@ For VBAN real-application testing, use a Windows PC with VB-Audio VBAN Receptor 
 | `core2_voicemeeter_to_speaker/` | Core2 speaker plays a VBAN stream sent by Voicemeeter | M5Stack Core2 + Windows PC + Voicemeeter | Added |
 | `core2_rtp_speaker/` | Python sends RTP audio to the Core2 speaker | M5Stack Core2 + Wi-Fi AP | Added |
 | `core2_rtp_mic/` | Python receives RTP audio from the Core2 mic | M5Stack Core2 + Wi-Fi AP | Added |
-| `core2_rtp_gstreamer/` | Core2 interoperates with GStreamer, ffmpeg, VLC, or another RTP tool | M5Stack Core2 + Linux PC or RTP-capable software | Planned |
-| `core2_stability/` | 30-minute UDP audio stream with drop, heap, and Wi-Fi checks | M5Stack Core2 + Wi-Fi AP | Planned |
+| `core2_rtp_gstreamer/` | Core2 interoperates with GStreamer, ffmpeg, VLC, or another RTP tool | M5Stack Core2 + Linux PC or RTP-capable software | Added |
+| `core2_stability/` | 30-minute UDP audio stream with drop, heap, and Wi-Fi checks | M5Stack Core2 + Wi-Fi AP | Added |
 
 ## Real-Application Command Examples
 
@@ -98,6 +98,12 @@ Packet capture:
 
 ```sh
 tshark -i any -f "udp port 6980 or udp port 5004" -Y "udp.port == 6980 || rtp || udp.port == 5004"
+```
+
+Shortened stability run:
+
+```sh
+CORE2_STABILITY_SECONDS=60 uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
 ```
 
 ## Judgment Policy

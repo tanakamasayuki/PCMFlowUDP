@@ -115,8 +115,8 @@ Core2 manual テストの初期実装は mono のみを必須にする。stereo�
 | `core2_voicemeeter_to_speaker/` | Voicemeeter から送った VBAN stream を Core2 が受信し、スピーカーで再生できることを確認する | DUT 統計 + 音声確認 | 追加済み |
 | `core2_rtp_speaker/` | RTP payload を Core2 が受信し、スピーカーから再生できることを確認する | packet 受信は自動、音声は人間確認 | 追加済み |
 | `core2_rtp_mic/` | Core2 のマイク入力を RTP payload として Python が受信できることを確認する | Python で sequence/timestamp/RMS 判定 | 追加済み |
-| `core2_rtp_gstreamer/` | GStreamer/ffmpeg/VLC など標準 RTP ツールと Core2 が相互運用できることを確認する | tool log + DUT 統計 + 音声確認 | 計画 |
-| `core2_stability/` | Wi-Fi と UDP 送受信を 30 分継続し、drop、heap 低下、再接続不能がないことを確認する | シリアル統計を自動判定 | 計画 |
+| `core2_rtp_gstreamer/` | GStreamer/ffmpeg/VLC など標準 RTP ツールと Core2 が相互運用できることを確認する | tool log + DUT 統計 + 音声確認 | 追加済み |
+| `core2_stability/` | Wi-Fi と UDP 送受信を 30 分継続し、drop、heap 低下、再接続不能がないことを確認する | シリアル統計を自動判定 | 追加済み |
 
 ## 各テストの詳細
 
