@@ -21,6 +21,7 @@ uv run --env-file .env pytest manual/core2_vban_mic/core2_vban_mic.py -v -s --pr
 uv run --env-file .env pytest manual/core2_vban_receptor/core2_vban_receptor.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_voicemeeter_to_speaker/core2_voicemeeter_to_speaker.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_speaker/core2_rtp_speaker.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
 ```
@@ -57,8 +58,8 @@ VBAN の実ソフト確認は Windows PC + VB-Audio VBAN Receptor / Voicemeeter 
 | `core2_vban_mic/` | Core2 マイク入力を VBAN PCM16 として Python が受信 | M5Stack Core2 + Wi-Fi AP | 追加済み |
 | `core2_vban_receptor/` | Core2 マイク入力を VBAN Receptor / Voicemeeter で受信・再生 | M5Stack Core2 + Windows PC + VBAN Receptor / Voicemeeter | 計画 |
 | `core2_voicemeeter_to_speaker/` | Voicemeeter から送った VBAN stream を Core2 スピーカーで再生 | M5Stack Core2 + Windows PC + Voicemeeter | 計画 |
-| `core2_rtp_speaker/` | Python から送った RTP audio を Core2 スピーカーで再生 | M5Stack Core2 + Wi-Fi AP | 計画 |
-| `core2_rtp_mic/` | Core2 マイク入力を RTP audio として Python が受信 | M5Stack Core2 + Wi-Fi AP | 計画 |
+| `core2_rtp_speaker/` | Python から送った RTP audio を Core2 スピーカーで再生 | M5Stack Core2 + Wi-Fi AP | 追加済み |
+| `core2_rtp_mic/` | Core2 マイク入力を RTP audio として Python が受信 | M5Stack Core2 + Wi-Fi AP | 追加済み |
 | `core2_rtp_gstreamer/` | GStreamer/ffmpeg/VLC など標準 RTP ツールと Core2 の相互運用 | M5Stack Core2 + Linux PC または RTP 対応ソフト | 計画 |
 | `core2_stability/` | 30 分の UDP audio stream 継続、drop、heap、Wi-Fi 状態確認 | M5Stack Core2 + Wi-Fi AP | 計画 |
 

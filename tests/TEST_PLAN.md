@@ -65,6 +65,7 @@ uv run --env-file .env pytest manual/core2_vban_mic/core2_vban_mic.py -v -s --pr
 uv run --env-file .env pytest manual/core2_vban_receptor/core2_vban_receptor.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_voicemeeter_to_speaker/core2_voicemeeter_to_speaker.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_speaker/core2_rtp_speaker.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
 ```
@@ -112,8 +113,8 @@ Speaker tests are officially judged by human confirmation for now. An external a
 | `core2_vban_mic/` | Python receives non-silent VBAN PCM16 from the Core2 mic | Python RMS/peak checks | Added |
 | `core2_vban_receptor/` | Core2 mic streams to VBAN Receptor / Voicemeeter | DUT stats + app UI/audio check | Planned |
 | `core2_voicemeeter_to_speaker/` | Voicemeeter sends VBAN stream to the Core2 speaker | DUT stats + audio check | Planned |
-| `core2_rtp_speaker/` | Core2 receives RTP payload and plays it through the speaker | Packet checks + human audio check | Planned |
-| `core2_rtp_mic/` | Python receives RTP payload from the Core2 mic | Python sequence/timestamp/RMS checks | Planned |
+| `core2_rtp_speaker/` | Core2 receives RTP payload and plays it through the speaker | Packet checks + human audio check | Added |
+| `core2_rtp_mic/` | Python receives RTP payload from the Core2 mic | Python sequence/timestamp/RMS checks | Added |
 | `core2_rtp_gstreamer/` | Verify interoperability with GStreamer, ffmpeg, VLC, or similar RTP tools | Tool logs + DUT stats + audio check | Planned |
 | `core2_stability/` | Run UDP audio for 30 minutes and check drops, heap, and Wi-Fi state | Serial stats | Planned |
 

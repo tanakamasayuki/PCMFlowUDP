@@ -65,6 +65,7 @@ uv run --env-file .env pytest manual/core2_vban_mic/core2_vban_mic.py -v -s --pr
 uv run --env-file .env pytest manual/core2_vban_receptor/core2_vban_receptor.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_voicemeeter_to_speaker/core2_voicemeeter_to_speaker.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_speaker/core2_rtp_speaker.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
 ```
@@ -112,8 +113,8 @@ Core2 manual テストの初期実装は mono のみを必須にする。stereo�
 | `core2_vban_mic/` | Core2 のマイク入力を VBAN PCM16 として Python が受信し、無音でないサンプルを観測できることを確認する | Python で RMS/peak 判定 | 追加済み |
 | `core2_vban_receptor/` | Core2 のマイク入力を VBAN Receptor / Voicemeeter に送り、実ソフトで受信・再生できることを確認する | DUT 統計 + 実ソフト UI/音声確認 | 計画 |
 | `core2_voicemeeter_to_speaker/` | Voicemeeter から送った VBAN stream を Core2 が受信し、スピーカーで再生できることを確認する | DUT 統計 + 音声確認 | 計画 |
-| `core2_rtp_speaker/` | RTP payload を Core2 が受信し、スピーカーから再生できることを確認する | packet 受信は自動、音声は人間確認 | 計画 |
-| `core2_rtp_mic/` | Core2 のマイク入力を RTP payload として Python が受信できることを確認する | Python で sequence/timestamp/RMS 判定 | 計画 |
+| `core2_rtp_speaker/` | RTP payload を Core2 が受信し、スピーカーから再生できることを確認する | packet 受信は自動、音声は人間確認 | 追加済み |
+| `core2_rtp_mic/` | Core2 のマイク入力を RTP payload として Python が受信できることを確認する | Python で sequence/timestamp/RMS 判定 | 追加済み |
 | `core2_rtp_gstreamer/` | GStreamer/ffmpeg/VLC など標準 RTP ツールと Core2 が相互運用できることを確認する | tool log + DUT 統計 + 音声確認 | 計画 |
 | `core2_stability/` | Wi-Fi と UDP 送受信を 30 分継続し、drop、heap 低下、再接続不能がないことを確認する | シリアル統計を自動判定 | 計画 |
 
