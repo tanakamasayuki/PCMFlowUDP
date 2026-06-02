@@ -53,8 +53,8 @@ For VBAN real-application testing, use a Windows PC with VB-Audio VBAN Receptor 
 |---|---|---|---|
 | `core2_smoke/` | Core2 build, flash, serial, LCD, buttons, and Wi-Fi | M5Stack Core2 | Added |
 | `core2_raw_udp_ping/` | RAW UDP round trip between Python and Core2 | M5Stack Core2 + Wi-Fi AP | Added |
-| `core2_vban_speaker/` | Python sends VBAN PCM16 to the Core2 speaker | M5Stack Core2 + Wi-Fi AP | Planned |
-| `core2_vban_mic/` | Python receives VBAN PCM16 from the Core2 mic | M5Stack Core2 + Wi-Fi AP | Planned |
+| `core2_vban_speaker/` | Python sends VBAN PCM16 to the Core2 speaker | M5Stack Core2 + Wi-Fi AP | Added |
+| `core2_vban_mic/` | Python receives VBAN PCM16 from the Core2 mic | M5Stack Core2 + Wi-Fi AP | Added |
 | `core2_vban_receptor/` | VBAN Receptor / Voicemeeter receives and plays Core2 mic audio | M5Stack Core2 + Windows PC + VBAN Receptor / Voicemeeter | Planned |
 | `core2_voicemeeter_to_speaker/` | Core2 speaker plays a VBAN stream sent by Voicemeeter | M5Stack Core2 + Windows PC + Voicemeeter | Planned |
 | `core2_rtp_speaker/` | Python sends RTP audio to the Core2 speaker | M5Stack Core2 + Wi-Fi AP | Planned |

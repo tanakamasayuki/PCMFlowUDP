@@ -53,8 +53,8 @@ VBAN の実ソフト確認は Windows PC + VB-Audio VBAN Receptor / Voicemeeter 
 |---|---|---|---|
 | `core2_smoke/` | Core2 のビルド、フラッシュ、Serial、LCD、ボタン、Wi-Fi 接続確認 | M5Stack Core2 | 追加済み |
 | `core2_raw_udp_ping/` | Python と Core2 の RAW UDP 往復確認 | M5Stack Core2 + Wi-Fi AP | 追加済み |
-| `core2_vban_speaker/` | Python から送った VBAN PCM16 を Core2 スピーカーで再生 | M5Stack Core2 + Wi-Fi AP | 計画 |
-| `core2_vban_mic/` | Core2 マイク入力を VBAN PCM16 として Python が受信 | M5Stack Core2 + Wi-Fi AP | 計画 |
+| `core2_vban_speaker/` | Python から送った VBAN PCM16 を Core2 スピーカーで再生 | M5Stack Core2 + Wi-Fi AP | 追加済み |
+| `core2_vban_mic/` | Core2 マイク入力を VBAN PCM16 として Python が受信 | M5Stack Core2 + Wi-Fi AP | 追加済み |
 | `core2_vban_receptor/` | Core2 マイク入力を VBAN Receptor / Voicemeeter で受信・再生 | M5Stack Core2 + Windows PC + VBAN Receptor / Voicemeeter | 計画 |
 | `core2_voicemeeter_to_speaker/` | Voicemeeter から送った VBAN stream を Core2 スピーカーで再生 | M5Stack Core2 + Windows PC + Voicemeeter | 計画 |
 | `core2_rtp_speaker/` | Python から送った RTP audio を Core2 スピーカーで再生 | M5Stack Core2 + Wi-Fi AP | 計画 |
