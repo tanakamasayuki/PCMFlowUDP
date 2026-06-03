@@ -23,6 +23,7 @@ uv run --env-file .env pytest manual/core2_voicemeeter_to_speaker/core2_voicemee
 uv run --env-file .env pytest manual/core2_rtp_speaker/core2_rtp_speaker.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_buffer_tuning/core2_rtp_buffer_tuning.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g711_gstreamer/core2_rtp_g711_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g722_gstreamer/core2_rtp_g722_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_opus_gstreamer/core2_rtp_opus_gstreamer.py -v -s --profile m5stack_core2
@@ -100,6 +101,7 @@ For VBAN real-application testing, use a Windows PC with VB-Audio VBAN Receptor 
 | `core2_rtp_speaker/` | Python sends RTP audio to the DUT speaker | M5Stack Core2/CoreS3 + Wi-Fi AP | Added |
 | `core2_rtp_mic/` | Python receives RTP audio from the DUT mic | M5Stack Core2/CoreS3 + Wi-Fi AP | Added |
 | `core2_rtp_gstreamer/` | DUT plays RTP/L16 sent by GStreamer | M5Stack Core2/CoreS3 + Linux PC | Added |
+| `core2_rtp_buffer_tuning/` | Operator tunes RTP/L16 prebuffer and playback chunk presets with Core2 buttons | M5Stack Core2/CoreS3 + Linux/Windows PC + GStreamer | Added |
 | `core2_rtp_g711_gstreamer/` | DUT decodes and plays RTP/PCMU sent by GStreamer | M5Stack Core2/CoreS3 + Linux PC | Added |
 | `core2_rtp_g722_gstreamer/` | DUT decodes and plays RTP/G.722 sent by GStreamer | M5Stack Core2/CoreS3 + Linux PC | Added |
 | `core2_rtp_opus_gstreamer/` | DUT decodes and plays RTP/Opus sent by GStreamer | M5Stack Core2/CoreS3 + Linux PC | Added |
@@ -111,6 +113,8 @@ Send RTP/L16 mono from PC to Core2:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,format=S16BE,rate=16000,channels=1 \
   ! rtpL16pay \
   ! udpsink host=<core2-ip> port=5004
@@ -118,10 +122,14 @@ gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
 
 GStreamer commonly emits this 16 kHz L16 stream as dynamic PT 96; `core2_rtp_gstreamer` accepts that PT as L16.
 
+For `core2_rtp_buffer_tuning/`, compare five presets: `p0-low` 20 ms initial prebuffer, `p1-voip` 40 ms with 20 ms chunks, `p2-balanced` 40 ms with 40 ms chunks, `p3-safe` 60 ms, and `p4-stable` 80 ms. Keep the GStreamer command running while pressing Core2 buttons. Press A/B only after `TUNE ... state=RUNNING`; preset changes intentionally stop playback and return through `PREFILLING`, so ignore the transition gap. Save one result row per preset with audible gaps after `RUNNING`, time to become stable after restart, `drop`, `empty`, `wait`, the final `TUNE` line, and notes. Prefer the lowest-latency preset that has continuous audio and stable counters; `late_delta` is advisory only. Stop GStreamer only after comparing presets, then press Enter in pytest.
+
 Send RTP/PCMU from PC to Core2:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,rate=8000,channels=1 \
   ! audioconvert \
   ! mulawenc \
@@ -133,6 +141,8 @@ Send RTP/G.722 from PC to Core2:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,format=S16LE,rate=16000,channels=1 \
   ! audioconvert \
   ! avenc_g722 \
@@ -144,6 +154,8 @@ Send RTP/Opus from PC to DUT:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,format=S16LE,rate=48000,channels=1 \
   ! audioconvert \
   ! opusenc bitrate=24000 frame-size=20 audio-type=voice \

@@ -40,6 +40,8 @@ Latency targets are use-case specific.
 | LAN hardware speaker playback / manual tests | 40-80 ms | 20-40 ms | Stability-oriented. Core2 manual speaker tests use 80 ms initially, then 40 ms chunks |
 | BGM / monitoring / one-way streaming | 80 ms or more acceptable | 40 ms or more acceptable | Stability can be prioritized over low latency |
 
+For device-specific speaker helpers, the normal read chunk must also match the output API. On M5Unified `Speaker.playRaw()` with Core2, manual RTP/L16 tuning showed audible gaps with 20 ms playback chunks (`p0-low`, `p1-voip`) even when RTP receive counters stayed clean (`drop=0`, `empty=0`, `wait=0`). The current Core2 speaker-helper default candidate is therefore 40 ms initial prebuffer with 40 ms playback chunks (`p2-balanced`), with 80 ms initial prebuffer (`p4-stable`) kept as a stability reference rather than a VoIP default.
+
 PCMFlowUDP does not perform packet loss concealment. Sequence gaps and timestamp discontinuities should be observable; silence insertion, interpolation, and codec PLC are owned by the caller or codec layer.
 
 ## 2. Non-goals

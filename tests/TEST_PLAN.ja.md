@@ -68,6 +68,7 @@ uv run --env-file .env pytest manual/core2_voicemeeter_to_speaker/core2_voicemee
 uv run --env-file .env pytest manual/core2_rtp_speaker/core2_rtp_speaker.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_buffer_tuning/core2_rtp_buffer_tuning.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g711_gstreamer/core2_rtp_g711_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g722_gstreamer/core2_rtp_g722_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_opus_gstreamer/core2_rtp_opus_gstreamer.py -v -s --profile m5stack_core2
@@ -135,6 +136,7 @@ manual テストの codec 相互接続は G711、G722、Opus を対象にする�
 | `core2_rtp_speaker/` | RTP payload を Core2 が受信し、スピーカーから再生できることを確認する | packet 受信は自動、音声は人間確認 | 追加済み |
 | `core2_rtp_mic/` | Core2 のマイク入力を RTP payload として Python が受信できることを確認する | Python で sequence/timestamp/RMS 判定 | 追加済み |
 | `core2_rtp_gstreamer/` | GStreamer から送った RTP/L16 を Core2 が再生できることを確認する | tool log + DUT 統計 + 音声確認 | 追加済み |
+| `core2_rtp_buffer_tuning/` | Core2 ボタンで RTP/L16 のプリバッファと再生 chunk preset を探索する | DUT 統計 + 音声比較 | 追加済み |
 | `core2_rtp_g711_gstreamer/` | GStreamer から送った RTP/PCMU を Core2 が G711 decode して再生できることを確認する | tool log + DUT 統計 + 音声確認 | 追加済み |
 | `core2_rtp_g722_gstreamer/` | GStreamer から送った RTP/G.722 を Core2 が G722 decode して再生できることを確認する | tool log + DUT 統計 + 音声確認 | 追加済み |
 | `core2_rtp_opus_gstreamer/` | GStreamer から送った RTP/Opus dynamic PT を DUT が Opus decode して再生できることを確認する | build size + runtime heap + 音声確認 | 追加済み |
@@ -154,6 +156,7 @@ packet capture を残す場合は、次のファイル名で pcapng を保存す
 | `core2_rtp_speaker/` | `udp port 5004` | `core2_rtp_speaker.pcapng` |
 | `core2_rtp_mic/` | `udp port 5004` | `core2_rtp_mic.pcapng` |
 | `core2_rtp_gstreamer/` | `udp port 5004` | `core2_rtp_gstreamer.pcapng` |
+| `core2_rtp_buffer_tuning/` | `udp port 5004` | `core2_rtp_buffer_tuning.pcapng` |
 | `core2_rtp_g711_gstreamer/` | `udp port 5004` | `core2_rtp_g711_gstreamer.pcapng` |
 | `core2_rtp_g722_gstreamer/` | `udp port 5004` | `core2_rtp_g722_gstreamer.pcapng` |
 | `core2_rtp_opus_gstreamer/` | `udp port 5004` | `core2_rtp_opus_gstreamer.pcapng` |
@@ -401,10 +404,77 @@ PC から Core2 speaker へ L16 mono RTP を送る例:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,format=S16BE,rate=16000,channels=1 \
   ! rtpL16pay \
   ! udpsink host=<core2-ip> port=5004
 ```
+
+### core2_rtp_buffer_tuning
+
+目的:
+ライブラリ本体の受信バッファ API とデフォルト値を固める前に、RTP/L16 の初期プリバッファと再生 chunk preset を探索する。
+
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_buffer_tuning/core2_rtp_buffer_tuning.py -v -s --profile m5stack_core2
+```
+
+[実ソフトのコマンド例](#core2_rtp_gstreamer) と同じ RTP/L16 GStreamer コマンドを使う。Core2 側は Button A で次の preset、Button B で前の preset、Button C で現在 preset の再起動と統計 reset を行う。preset 変更時は意図的に再生を止め、local tuning buffer を破棄し、`PREFILLING` から再開する。gap 系の統計は `RUNNING` 中だけ評価する。
+
+preset:
+
+| Preset | 初期プリバッファ | 再生 chunk | 初期遅延 | 位置づけ |
+|---|---:|---:|---:|---|
+| `p0-low` | 1 packet | 1 packet | 20 ms | 最小遅延の負荷確認 |
+| `p1-voip` | 2 packets | 1 packet | 40 ms | VoIP 系候補 |
+| `p2-balanced` | 2 packets | 2 packets | 40 ms | default の出発点 |
+| `p3-safe` | 3 packets | 2 packets | 60 ms | LAN speaker の安全側候補 |
+| `p4-stable` | 4 packets | 2 packets | 80 ms | 安定性の基準。VoIP には重め |
+
+手順:
+1. pytest を起動し、DUT IP アドレスと GStreamer コマンドが表示されるまで待つ。
+2. PC 側で GStreamer コマンドを起動し、tuning 中は動かしたままにする。
+3. Serial に `TUNE ... state=RUNNING` が出るまで待つ。
+4. 音の評価は、選択中 preset が `RUNNING` の間だけ行う。
+5. GStreamer を動かしたまま、Button A または Button B で preset を切り替える。
+6. ボタン押下後は、スケッチが意図的に再生を止め、local buffer を破棄し、`PREFILLING` を経て `RUNNING` に戻る。この切替中の無音や途切れは失敗扱いにしない。
+7. 同じ preset を clean prefill から再確認したい場合は Button C を押す。
+8. 比較したい preset をすべて確認してから GStreamer を止め、pytest 側で Enter を押して終了する。
+
+主なログ項目:
+- `initial` / `chunk`: packet 数。RTP/L16 の 1 packet は 20 ms。
+- `read_empty`: `RUNNING` 中に RTP poll は成功したが PCM frames が読めなかった回数。
+- `play_waits`: `RUNNING` 中に `playRaw()` queue full で retry した回数。
+- `late`: 前回 chunk の再生時間 + slack を超えて次の投入が遅れた参考値。M5Unified 側に音声 queue が残っていれば音は途切れないため、単独で合否判定には使わない。
+- `late_delta`: 前回の `TUNE` 行から増えた `late`。累積の `late` より preset 間比較に使いやすい。
+
+主な判断基準:
+- 音の評価は、選択中 preset が `RUNNING` の間だけ行う。
+- 音が連続し、`drop=0`、`empty=0`、`wait=0` または安定している最小 preset を候補にする。
+- `late` は追加調査のヒントとして扱い、単独では失敗扱いにしない。
+
+preset ごとに 1 行ずつ残す:
+
+| Preset | 判定 | RUNNING 後の聴感 gap | restart 後に安定するまで | `drop` | `empty` | `wait` | メモ |
+|---|---|---|---:|---:|---:|---:|---|
+| `p0-low` | pass/fail/borderline | yes/no | 秒 | 値 | 値 | 値 | |
+| `p1-voip` | pass/fail/borderline | yes/no | 秒 | 値 | 値 | 値 | |
+| `p2-balanced` | pass/fail/borderline | yes/no | 秒 | 値 | 値 | 値 | |
+| `p3-safe` | pass/fail/borderline | yes/no | 秒 | 値 | 値 | 値 | |
+| `p4-stable` | pass/fail/borderline | yes/no | 秒 | 値 | 値 | 値 | |
+
+`pass` は、`RUNNING` 後に音が連続し、counter が増え続けない場合だけにする。最初の数秒だけ怪しいがその後安定するものは `borderline` として残す。採用候補は最も遅延が小さい `pass` を優先し、低遅延 preset がすべて `borderline` の場合は 80 ms に逃げず、API default の検討材料として残す。
+
+ログをメモへ貼る場合は、少なくとも preset ごとの最後の `TUNE` 行を残す。`late_delta` は補助指標として比較し、`drop=0`、`empty=0`、`wait=0` の場合は最終的に聴感の連続性を優先する。
+
+現時点の Core2 観測:
+- `p0-low` と `p1-voip` は Core2 speaker 再生では失敗扱いにする。`drop=0`、`empty=0`、`wait=0` でも、20 ms chunk で聴感上の途切れが出る。
+- `p2-balanced` は Core2 系 speaker helper の API default 候補。初期 40 ms、再生 chunk 40 ms。
+- `p4-stable` は安定性確認用の基準として残す。`late_delta` が最小でも、80 ms は低遅延用途には重いため default にはしない。
 
 ### core2_rtp_g711_gstreamer
 
@@ -422,6 +492,8 @@ PC から Core2 speaker へ PCMU RTP を送る例:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,rate=8000,channels=1 \
   ! audioconvert \
   ! mulawenc \
@@ -451,6 +523,8 @@ PC から Core2 speaker へ G.722 RTP を送る例:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,format=S16LE,rate=16000,channels=1 \
   ! audioconvert \
   ! avenc_g722 \
@@ -474,6 +548,8 @@ PC から DUT speaker へ Opus RTP を送る例:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,format=S16LE,rate=48000,channels=1 \
   ! audioconvert \
   ! opusenc bitrate=24000 frame-size=20 audio-type=voice \

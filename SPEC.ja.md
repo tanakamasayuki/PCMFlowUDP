@@ -40,6 +40,8 @@ UDP audio では、packet 到着間隔の揺れと出力デバイス側の非同
 | LAN 内の実機 speaker 再生 / manual test | 40-80 ms | 20-40 ms | 音切れを避ける安定寄り設定。Core2 manual speaker テストは初回 80 ms、以後 40 ms |
 | BGM / 監視 / 片方向ストリーミング | 80 ms 以上も可 | 40 ms 以上も可 | 低遅延より安定性を優先できる |
 
+デバイス固有 speaker helper では、通常読み出し chunk は出力 API 側の都合にも合わせる。M5Unified `Speaker.playRaw()` + Core2 では、RTP/L16 tuning の結果、RTP 受信 counter が正常 (`drop=0`、`empty=0`、`wait=0`) でも 20 ms 再生 chunk (`p0-low`、`p1-voip`) で聴感上の途切れが出た。したがって現時点の Core2 speaker helper default 候補は、初期 40 ms + 再生 chunk 40 ms の `p2-balanced` とし、初期 80 ms の `p4-stable` は VoIP default ではなく安定性確認用の基準として扱う。
+
 PCMFlowUDP は packet loss concealment は行わない。sequence 欠落や timestamp 不連続は観測可能にし、無音挿入、補間、codec PLC は呼び出し側または codec 側で扱う。
 
 ## 2. 対象外

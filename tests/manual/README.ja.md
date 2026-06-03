@@ -23,6 +23,7 @@ uv run --env-file .env pytest manual/core2_voicemeeter_to_speaker/core2_voicemee
 uv run --env-file .env pytest manual/core2_rtp_speaker/core2_rtp_speaker.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_buffer_tuning/core2_rtp_buffer_tuning.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g711_gstreamer/core2_rtp_g711_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g722_gstreamer/core2_rtp_g722_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_opus_gstreamer/core2_rtp_opus_gstreamer.py -v -s --profile m5stack_core2
@@ -100,6 +101,7 @@ VBAN の実ソフト確認は Windows PC + VB-Audio VBAN Receptor / Voicemeeter 
 | `core2_rtp_speaker/` | Python から送った RTP audio を DUT スピーカーで再生 | M5Stack Core2/CoreS3 + Wi-Fi AP | 追加済み |
 | `core2_rtp_mic/` | DUT マイク入力を RTP audio として Python が受信 | M5Stack Core2/CoreS3 + Wi-Fi AP | 追加済み |
 | `core2_rtp_gstreamer/` | GStreamer から送った RTP/L16 を DUT が再生 | M5Stack Core2/CoreS3 + Linux PC | 追加済み |
+| `core2_rtp_buffer_tuning/` | Core2 ボタンで RTP/L16 のプリバッファと再生 chunk preset を切り替えて調整 | M5Stack Core2/CoreS3 + Linux/Windows PC + GStreamer | 追加済み |
 | `core2_rtp_g711_gstreamer/` | GStreamer から送った RTP/PCMU を DUT が G711 decode して再生 | M5Stack Core2/CoreS3 + Linux PC | 追加済み |
 | `core2_rtp_g722_gstreamer/` | GStreamer から送った RTP/G.722 を DUT が G722 decode して再生 | M5Stack Core2/CoreS3 + Linux PC | 追加済み |
 | `core2_rtp_opus_gstreamer/` | GStreamer から送った RTP/Opus を DUT が Opus decode して再生 | M5Stack Core2/CoreS3 + Linux PC | 追加済み |
@@ -111,6 +113,8 @@ PC から Core2 へ RTP/L16 mono を送る例:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,format=S16BE,rate=16000,channels=1 \
   ! rtpL16pay \
   ! udpsink host=<core2-ip> port=5004
@@ -118,10 +122,14 @@ gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
 
 GStreamer はこの 16 kHz L16 stream を dynamic PT 96 として送ることが多いため、`core2_rtp_gstreamer` は PT 96 を L16 として受けます。
 
+`core2_rtp_buffer_tuning/` では 5 種類の preset を比較します。`p0-low` は初期 20 ms、`p1-voip` は初期 40 ms + 20 ms chunk、`p2-balanced` は初期 40 ms + 40 ms chunk、`p3-safe` は初期 60 ms、`p4-stable` は初期 80 ms です。GStreamer コマンドを動かしたまま Core2 のボタンを押します。Button A/B は `TUNE ... state=RUNNING` が出てから押してください。preset 変更時は意図的に再生を止めて `PREFILLING` を経由するため、その切替中の無音や途切れは評価対象外です。preset ごとに、`RUNNING` 後の聴感 gap、restart 後に安定するまでの秒数、`drop`、`empty`、`wait`、最後の `TUNE` 行、メモを残します。採用候補は、音が連続して counter が安定する最小遅延 preset を優先し、`late_delta` は参考値として扱います。preset 比較が終わってから GStreamer を止め、pytest 側で Enter を押して終了します。
+
 PC から Core2 へ RTP/PCMU を送る例:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,rate=8000,channels=1 \
   ! audioconvert \
   ! mulawenc \
@@ -133,6 +141,8 @@ PC から Core2 へ RTP/G.722 を送る例:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,format=S16LE,rate=16000,channels=1 \
   ! audioconvert \
   ! avenc_g722 \
@@ -144,6 +154,8 @@ PC から DUT へ RTP/Opus を送る例:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,format=S16LE,rate=48000,channels=1 \
   ! audioconvert \
   ! opusenc bitrate=24000 frame-size=20 audio-type=voice \

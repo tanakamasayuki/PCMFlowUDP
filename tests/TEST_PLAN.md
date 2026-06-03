@@ -68,6 +68,7 @@ uv run --env-file .env pytest manual/core2_voicemeeter_to_speaker/core2_voicemee
 uv run --env-file .env pytest manual/core2_rtp_speaker/core2_rtp_speaker.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
+uv run --env-file .env pytest manual/core2_rtp_buffer_tuning/core2_rtp_buffer_tuning.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g711_gstreamer/core2_rtp_g711_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_g722_gstreamer/core2_rtp_g722_gstreamer.py -v -s --profile m5stack_core2
 uv run --env-file .env pytest manual/core2_rtp_opus_gstreamer/core2_rtp_opus_gstreamer.py -v -s --profile m5stack_core2
@@ -135,6 +136,7 @@ The overall receive-buffering and latency policy is defined in [SPEC.md](../SPEC
 | `core2_rtp_speaker/` | Core2 receives RTP payload and plays it through the speaker | Packet checks + human audio check | Added |
 | `core2_rtp_mic/` | Python receives RTP payload from the Core2 mic | Python sequence/timestamp/RMS checks | Added |
 | `core2_rtp_gstreamer/` | Verify Core2 playback of RTP/L16 sent by GStreamer | Tool logs + DUT stats + audio check | Added |
+| `core2_rtp_buffer_tuning/` | Explore RTP/L16 prebuffer and playback chunk presets using Core2 buttons | DUT stats + operator audio comparison | Added |
 | `core2_rtp_g711_gstreamer/` | Verify Core2 G711 decode/playback of RTP/PCMU sent by GStreamer | Tool logs + DUT stats + audio check | Added |
 | `core2_rtp_g722_gstreamer/` | Verify Core2 G722 decode/playback of RTP/G.722 sent by GStreamer | Tool logs + DUT stats + audio check | Added |
 | `core2_rtp_opus_gstreamer/` | Verify DUT Opus decode/playback of RTP/Opus dynamic PT sent by GStreamer | Build size + runtime heap + audio check | Added |
@@ -154,6 +156,7 @@ When keeping packet capture evidence, save pcapng files with these per-test name
 | `core2_rtp_speaker/` | `udp port 5004` | `core2_rtp_speaker.pcapng` |
 | `core2_rtp_mic/` | `udp port 5004` | `core2_rtp_mic.pcapng` |
 | `core2_rtp_gstreamer/` | `udp port 5004` | `core2_rtp_gstreamer.pcapng` |
+| `core2_rtp_buffer_tuning/` | `udp port 5004` | `core2_rtp_buffer_tuning.pcapng` |
 | `core2_rtp_g711_gstreamer/` | `udp port 5004` | `core2_rtp_g711_gstreamer.pcapng` |
 | `core2_rtp_g722_gstreamer/` | `udp port 5004` | `core2_rtp_g722_gstreamer.pcapng` |
 | `core2_rtp_opus_gstreamer/` | `udp port 5004` | `core2_rtp_opus_gstreamer.pcapng` |
@@ -307,6 +310,71 @@ uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py 
 
 Use the RTP/L16 GStreamer command in [Real-Application Commands](#real-application-commands) to send audio to the DUT. GStreamer commonly emits 16 kHz L16 as dynamic PT 96, and this test accepts that PT as L16.
 
+### core2_rtp_buffer_tuning
+
+Purpose:
+Explore RTP/L16 initial prebuffer and playback chunk presets before freezing the library-level buffering API defaults.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_buffer_tuning/core2_rtp_buffer_tuning.py -v -s --profile m5stack_core2
+```
+
+Use the RTP/L16 GStreamer command in [Real-Application Commands](#real-application-commands). On the Core2, Button A selects the next preset, Button B selects the previous preset, and Button C restarts the current preset and resets stats. Preset changes intentionally stop playback, clear local tuning buffers, and return through `PREFILLING`; gap counters are only meaningful in `RUNNING`.
+
+Presets:
+
+| Preset | Initial prebuffer | Playback chunk | Initial latency | Intended use |
+|---|---:|---:|---:|---|
+| `p0-low` | 1 packet | 1 packet | 20 ms | Lowest-latency stress case |
+| `p1-voip` | 2 packets | 1 packet | 40 ms | VoIP-like candidate |
+| `p2-balanced` | 2 packets | 2 packets | 40 ms | Default starting point |
+| `p3-safe` | 3 packets | 2 packets | 60 ms | Safer LAN playback candidate |
+| `p4-stable` | 4 packets | 2 packets | 80 ms | Stability reference, usually high for VoIP |
+
+Procedure:
+1. Start pytest and wait for the DUT IP address and the printed GStreamer command.
+2. Start the GStreamer command on the PC and keep it running while tuning.
+3. Wait until Serial shows `TUNE ... state=RUNNING`.
+4. Listen to the current preset only while state is `RUNNING`.
+5. Press Button A or B while GStreamer is still running to switch presets.
+6. After a button press, the sketch intentionally stops playback, clears local buffers, enters `PREFILLING`, then resumes `RUNNING`. Do not count the transition gap as a failure.
+7. Press Button C to retest the same preset from a clean prefill.
+8. Stop GStreamer only after comparing all target presets, then press Enter in pytest to finish.
+
+Reported fields:
+- `initial` / `chunk`: packet counts, where one RTP/L16 packet is 20 ms.
+- `read_empty`: RUNNING-only count of successful RTP polls that produced no PCM frames.
+- `play_waits`: RUNNING-only count of `playRaw()` queue-full retries.
+- `late`: advisory count of playback submissions later than the previous chunk duration plus slack. Do not use it as the primary pass/fail signal because M5Unified may still have queued audio.
+- `late_delta`: advisory `late` increase since the previous `TUNE` line. This is easier to compare than cumulative `late`.
+
+Primary tuning judgment:
+- Listen for audible gaps only while the selected preset is `RUNNING`.
+- Prefer the smallest preset that sounds continuous and keeps `drop=0`, `empty=0`, and `wait=0` or stable.
+- Treat `late` as a hint for deeper investigation, not as a failure by itself.
+
+Record one row per preset:
+
+| Preset | Result | Audible gaps after RUNNING | First stable after restart | `drop` | `empty` | `wait` | Notes |
+|---|---|---|---:|---:|---:|---:|---|
+| `p0-low` | pass/fail/borderline | yes/no | seconds | value | value | value | |
+| `p1-voip` | pass/fail/borderline | yes/no | seconds | value | value | value | |
+| `p2-balanced` | pass/fail/borderline | yes/no | seconds | value | value | value | |
+| `p3-safe` | pass/fail/borderline | yes/no | seconds | value | value | value | |
+| `p4-stable` | pass/fail/borderline | yes/no | seconds | value | value | value | |
+
+Use `pass` only when the tone stays continuous after `RUNNING` and the counters do not keep growing. Use `borderline` when the first few seconds are questionable but the preset becomes stable. Prefer the lowest-latency `pass`; if all low-latency presets are borderline, keep the result for API-default discussion instead of silently choosing 80 ms.
+
+When copying logs into notes, preserve at least the final `TUNE` line for each preset. Compare `late_delta` only as a secondary signal; if `drop=0`, `empty=0`, and `wait=0`, audible continuity is still the deciding factor.
+
+Current Core2 observation:
+- `p0-low` and `p1-voip` are failures for Core2 speaker playback because audible gaps occur with 20 ms chunks even when `drop=0`, `empty=0`, and `wait=0`.
+- `p2-balanced` is the current API-default candidate for Core2-style speaker helpers: 40 ms initial prebuffer and 40 ms chunks.
+- `p4-stable` remains the stability reference. Do not choose it as the default only because it has the smallest `late_delta`; 80 ms is heavy for low-latency use.
+
 ### core2_rtp_g711_gstreamer
 
 Purpose:
@@ -380,6 +448,8 @@ Send RTP/L16 mono from PC to Core2:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,format=S16BE,rate=16000,channels=1 \
   ! rtpL16pay \
   ! udpsink host=<core2-ip> port=5004
@@ -389,6 +459,8 @@ Send RTP/PCMU from PC to Core2:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,rate=8000,channels=1 \
   ! audioconvert \
   ! mulawenc \
@@ -400,6 +472,8 @@ Send RTP/G.722 from PC to DUT:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,format=S16LE,rate=16000,channels=1 \
   ! audioconvert \
   ! avenc_g722 \
@@ -411,6 +485,8 @@ Send RTP/Opus from PC to DUT:
 
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
+  ! volume volume=0.5 \
+  ! audioconvert \
   ! audio/x-raw,format=S16LE,rate=48000,channels=1 \
   ! audioconvert \
   ! opusenc bitrate=24000 frame-size=20 audio-type=voice \

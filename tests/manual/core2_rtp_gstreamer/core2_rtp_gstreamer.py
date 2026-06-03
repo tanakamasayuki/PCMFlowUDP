@@ -26,6 +26,8 @@ def test_core2_rtp_gstreamer(dut):
     print("GStreamer commonly emits 16 kHz L16 as dynamic PT 96; the DUT accepts that for this test.")
     print(
         "gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true "
+        "! volume volume=0.5 "
+        "! audioconvert "
         "! audio/x-raw,format=S16BE,rate=16000,channels=1 "
         "! rtpL16pay "
         f"! udpsink host={core2_ip} port=5004"
