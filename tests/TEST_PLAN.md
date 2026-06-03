@@ -52,7 +52,8 @@ For VBAN real-application testing, use Windows with VBAN Receptor or Voicemeeter
 - AP client isolation is disabled.
 - The PC firewall allows UDP 6980 for VBAN and UDP 5004 for the RTP examples.
 - Multicast is out of scope for this library. Use broadcast or an explicit IP address when VBAN fan-out is needed.
-- Start packet capture with `udp port 6980 or udp port 5004`; when a failure needs to become a regression test, save the capture as a fixture under `tests/interop/captures/`.
+- Save packet captures as pcapng first. Use text output only as an inspection view extracted from the saved pcapng.
+- When a failure needs to become a regression test, save the pcapng as a fixture under `tests/interop/captures/`.
 
 ## Running Tests
 
@@ -138,6 +139,23 @@ Speaker tests are officially judged by human confirmation for now. An external a
 | `core2_stability/` | Run UDP audio for 30 minutes and check drops, heap, and Wi-Fi state | Serial stats | Added |
 
 ## Test Details
+
+When keeping packet capture evidence, save pcapng files with these per-test names. Inspect text summaries from the saved pcapng with `tshark -r ... -T fields`.
+
+| Test | Capture filter | Saved file |
+|---|---|---|
+| `core2_raw_udp_ping/` | `udp` | `core2_raw_udp_ping.pcapng` |
+| `core2_vban_speaker/` | `udp port 6980` | `core2_vban_speaker.pcapng` |
+| `core2_vban_mic/` | `udp port 6980` | `core2_vban_mic.pcapng` |
+| `core2_vban_receptor/` | `udp port 6980` | `core2_vban_receptor.pcapng` |
+| `core2_voicemeeter_to_speaker/` | `udp port 6980` | `core2_voicemeeter_to_speaker.pcapng` |
+| `core2_rtp_speaker/` | `udp port 5004` | `core2_rtp_speaker.pcapng` |
+| `core2_rtp_mic/` | `udp port 5004` | `core2_rtp_mic.pcapng` |
+| `core2_rtp_gstreamer/` | `udp port 5004` | `core2_rtp_gstreamer.pcapng` |
+| `core2_rtp_g711_gstreamer/` | `udp port 5004` | `core2_rtp_g711_gstreamer.pcapng` |
+| `core2_rtp_g722_gstreamer/` | `udp port 5004` | `core2_rtp_g722_gstreamer.pcapng` |
+| `core2_rtp_opus_gstreamer/` | `udp port 5004` | `core2_rtp_opus_gstreamer.pcapng` |
+| `core2_stability/` | `udp port 6980 or udp port 5004` | `core2_stability.pcapng` |
 
 ### core2_smoke
 
@@ -427,8 +445,17 @@ gst-launch-1.0 -v udpsrc port=5004 \
 
 Capture VBAN/RTP packets:
 
+Save pcapng:
+
 ```sh
-tshark -i any -f "udp port 6980 or udp port 5004" -Y "udp.port == 6980 || rtp || udp.port == 5004"
+tshark -i any -f "udp port 6980 or udp port 5004" -w core2_stability.pcapng
+```
+
+Inspect as text:
+
+```sh
+tshark -r core2_stability.pcapng -Y "udp.port == 6980 || rtp || udp.port == 5004" \
+  -T fields -e frame.time_relative -e ip.src -e ip.dst -e udp.srcport -e udp.dstport -e udp.length -e rtp.p_type -e rtp.seq -e rtp.timestamp
 ```
 
 ## Implementation Order

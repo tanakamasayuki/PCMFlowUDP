@@ -159,10 +159,19 @@ gst-launch-1.0 -v udpsrc port=5004 \
   ! autoaudiosink
 ```
 
-packet capture:
+packet capture は pcapng を保存し、必要なときにテキスト確認します。テスト別の保存ファイル名は `tests/TEST_PLAN.ja.md` を参照してください。
+
+保存用:
 
 ```sh
-tshark -i any -f "udp port 6980 or udp port 5004" -Y "udp.port == 6980 || rtp || udp.port == 5004"
+tshark -i any -f "udp port 6980 or udp port 5004" -w core2_stability.pcapng
+```
+
+確認用:
+
+```sh
+tshark -r core2_stability.pcapng -Y "udp.port == 6980 || rtp || udp.port == 5004" \
+  -T fields -e frame.time_relative -e ip.src -e ip.dst -e udp.srcport -e udp.dstport -e udp.length -e rtp.p_type -e rtp.seq -e rtp.timestamp
 ```
 
 長時間 stability を短縮して試す例:

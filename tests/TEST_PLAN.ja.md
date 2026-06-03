@@ -52,7 +52,8 @@ Windows では VBAN Receptor / Voicemeeter を入れ、必要なら Wireshark �
 - AP の client isolation は無効にする。
 - PC firewall で UDP 6980 (VBAN) と UDP 5004 (RTP 例) を許可する。
 - multicast はこのライブラリの対象外なので、VBAN fan-out が必要な場合は broadcast または明示 IP を使う。
-- packet capture は最初に `udp port 6980 or udp port 5004` で開始し、問題が出たら capture を fixture 化して `tests/interop/captures/` に残す。
+- packet capture は pcapng を一次保存にする。テキスト出力は保存済み pcapng から確認用に抽出する。
+- 問題が出たら pcapng を fixture 化して `tests/interop/captures/` に残す。
 
 ## 実行方法
 
@@ -138,6 +139,23 @@ manual テストの codec 相互接続は G711、G722、Opus を対象にする�
 | `core2_stability/` | Wi-Fi と UDP 送受信を 30 分継続し、drop、heap 低下、再接続不能がないことを確認する | シリアル統計を自動判定 | 追加済み |
 
 ## 各テストの詳細
+
+packet capture を残す場合は、次のファイル名で pcapng を保存する。保存済み pcapng から `tshark -r ... -T fields` でテキスト確認する。
+
+| テスト | capture filter | 保存ファイル |
+|---|---|---|
+| `core2_raw_udp_ping/` | `udp` | `core2_raw_udp_ping.pcapng` |
+| `core2_vban_speaker/` | `udp port 6980` | `core2_vban_speaker.pcapng` |
+| `core2_vban_mic/` | `udp port 6980` | `core2_vban_mic.pcapng` |
+| `core2_vban_receptor/` | `udp port 6980` | `core2_vban_receptor.pcapng` |
+| `core2_voicemeeter_to_speaker/` | `udp port 6980` | `core2_voicemeeter_to_speaker.pcapng` |
+| `core2_rtp_speaker/` | `udp port 5004` | `core2_rtp_speaker.pcapng` |
+| `core2_rtp_mic/` | `udp port 5004` | `core2_rtp_mic.pcapng` |
+| `core2_rtp_gstreamer/` | `udp port 5004` | `core2_rtp_gstreamer.pcapng` |
+| `core2_rtp_g711_gstreamer/` | `udp port 5004` | `core2_rtp_g711_gstreamer.pcapng` |
+| `core2_rtp_g722_gstreamer/` | `udp port 5004` | `core2_rtp_g722_gstreamer.pcapng` |
+| `core2_rtp_opus_gstreamer/` | `udp port 5004` | `core2_rtp_opus_gstreamer.pcapng` |
+| `core2_stability/` | `udp port 6980 or udp port 5004` | `core2_stability.pcapng` |
 
 ### core2_smoke
 
@@ -259,8 +277,17 @@ uv run --env-file .env pytest manual/core2_vban_receptor/core2_vban_receptor.py 
 
 補助コマンド:
 
+保存用:
+
 ```sh
-tshark -i any -f "udp port 6980" -Y "udp.port == 6980" -T fields -e ip.src -e ip.dst -e udp.length -e data.data
+tshark -i any -f "udp port 6980" -w core2_vban_receptor.pcapng
+```
+
+確認用:
+
+```sh
+tshark -r core2_vban_receptor.pcapng -Y "udp.port == 6980" \
+  -T fields -e frame.time_relative -e ip.src -e ip.dst -e udp.length -e data.data
 ```
 
 ### core2_voicemeeter_to_speaker
@@ -293,8 +320,17 @@ uv run --env-file .env pytest manual/core2_voicemeeter_to_speaker/core2_voicemee
 
 補助コマンド:
 
+保存用:
+
 ```sh
-tshark -i any -f "udp port 6980" -Y "udp.port == 6980" -T fields -e ip.src -e ip.dst -e udp.length
+tshark -i any -f "udp port 6980" -w core2_voicemeeter_to_speaker.pcapng
+```
+
+確認用:
+
+```sh
+tshark -r core2_voicemeeter_to_speaker.pcapng -Y "udp.port == 6980" \
+  -T fields -e frame.time_relative -e ip.src -e ip.dst -e udp.length
 ```
 
 ### core2_rtp_speaker
@@ -463,10 +499,19 @@ gst-launch-1.0 -v udpsrc port=5004 \
   ! autoaudiosink
 ```
 
-packet capture:
+補助コマンド:
+
+保存用:
 
 ```sh
-tshark -i any -f "udp port 5004" -Y "rtp || udp.port == 5004"
+tshark -i any -f "udp port 5004" -w core2_rtp_opus_gstreamer.pcapng
+```
+
+確認用:
+
+```sh
+tshark -r core2_rtp_opus_gstreamer.pcapng -Y "rtp || udp.port == 5004" \
+  -T fields -e frame.time_relative -e ip.src -e ip.dst -e udp.length -e rtp.p_type -e rtp.seq -e rtp.timestamp
 ```
 
 合格条件:
