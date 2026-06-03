@@ -15,12 +15,15 @@ static constexpr unsigned long kWifiTimeoutMs = 60000;
 static constexpr uint16_t kVbanPort = 6980;
 static constexpr uint32_t kSampleRate = 16000;
 static constexpr size_t kFrames = 256;
-static constexpr size_t kPacketsToSend = 320;
+static constexpr unsigned long kPacketIntervalUs = (kFrames * 1000000UL) / kSampleRate;
+static constexpr unsigned long kStatsIntervalMs = 1000;
 static const char *kStreamName = "Core2Mic";
 
 WiFiUDP g_udp;
 VbanSender g_sender(g_udp);
 static size_t g_packets = 0;
+static unsigned long g_nextSendUs = 0;
+static unsigned long g_lastStatsMs = 0;
 
 static bool connectWifi(IPAddress &ip)
 {
@@ -118,13 +121,6 @@ void loop()
 {
     M5.update();
 
-    if (g_packets >= kPacketsToSend)
-    {
-        Serial.println("VBAN-TX done");
-        while (true)
-            delay(1000);
-    }
-
     int16_t samples[kFrames] = {0};
     if (!M5.Mic.record(samples, kFrames, kSampleRate))
     {
@@ -132,12 +128,21 @@ void loop()
         return;
     }
 
+    const unsigned long nowUs = micros();
+    if (g_nextSendUs == 0)
+        g_nextSendUs = nowUs;
+    if (static_cast<long>(nowUs - g_nextSendUs) < 0)
+        delayMicroseconds(g_nextSendUs - nowUs);
+    g_nextSendUs += kPacketIntervalUs;
+
     const size_t written = g_sender.writeFrames(samples, kFrames);
     g_sender.flush();
     ++g_packets;
 
-    if ((g_packets % 25) == 0)
+    const unsigned long nowMs = millis();
+    if (nowMs - g_lastStatsMs >= kStatsIntervalMs)
     {
+        g_lastStatsMs = nowMs;
         Serial.print("VBAN-TX packets=");
         Serial.print(g_packets);
         Serial.print(" frames=");

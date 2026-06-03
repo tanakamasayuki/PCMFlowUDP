@@ -14,13 +14,23 @@
 static constexpr unsigned long kWifiTimeoutMs = 60000;
 static constexpr uint16_t kVbanPort = 6980;
 static constexpr uint32_t kExpectedRate = 16000;
-static constexpr size_t kMaxFrames = 256;
+static constexpr size_t kInitialPlayFrames = (kExpectedRate * 80u) / 1000u;
+static constexpr size_t kPlayFrames = (kExpectedRate * 64u) / 1000u;
+static constexpr size_t kAudioBuffers = 3;
+static constexpr unsigned long kStatsIntervalMs = 500;
 static const char *kStreamName = "PcToCore2";
 
 WiFiUDP g_udp;
 VbanReceiver g_rx(g_udp);
 static uint32_t g_packets = 0;
 static uint32_t g_drops = 0;
+static unsigned long g_lastStatsMs = 0;
+static int16_t g_audio[kAudioBuffers][kInitialPlayFrames] = {};
+static size_t g_audioIndex = 0;
+static size_t g_audioFill = 0;
+static bool g_playStarted = false;
+static size_t g_lastFrames = 0;
+static uint32_t g_lastLoggedPackets = 0;
 
 static bool connectWifi(IPAddress &ip)
 {
@@ -103,30 +113,19 @@ void setup()
     Serial.println(kStreamName);
 }
 
-void loop()
+static void submitAudio(size_t frames, uint32_t sampleRate)
 {
-    M5.update();
-
-    if (!g_rx.poll())
+    while (!M5.Speaker.playRaw(g_audio[g_audioIndex], frames, sampleRate, false, 1, 0, false))
     {
-        delay(2);
-        return;
+        delay(1);
     }
+    g_audioIndex = (g_audioIndex + 1) % kAudioBuffers;
+    g_audioFill = 0;
+    g_playStarted = true;
+}
 
-    int16_t samples[kMaxFrames] = {0};
-    const size_t got = g_rx.readFrames(samples, kMaxFrames);
-    const PCMFormat &fmt = g_rx.format();
-    ++g_packets;
-
-    if (fmt.sampleRate != kExpectedRate || fmt.channels != 1 || got == 0)
-    {
-        ++g_drops;
-    }
-    else
-    {
-        M5.Speaker.playRaw(samples, got, fmt.sampleRate, false, 1, 0, false);
-    }
-
+static void printStats(const PCMFormat &fmt)
+{
     Serial.print("VBAN-RX stream=");
     Serial.print(g_rx.currentStreamName());
     Serial.print(" rate=");
@@ -134,11 +133,61 @@ void loop()
     Serial.print(" channels=");
     Serial.print(fmt.channels);
     Serial.print(" frames=");
-    Serial.print(got);
+    Serial.print(g_lastFrames);
     Serial.print(" packets=");
     Serial.print(g_packets);
     Serial.print(" drops=");
     Serial.println(g_drops);
+}
 
-    drawStatus(WiFi.localIP(), got);
+void loop()
+{
+    M5.update();
+
+    size_t got = 0;
+    if (g_rx.poll())
+    {
+        const PCMFormat &fmt = g_rx.format();
+        ++g_packets;
+
+        if (fmt.sampleRate != kExpectedRate || fmt.channels != 1)
+        {
+            ++g_drops;
+        }
+        else
+        {
+            int16_t *samples = g_audio[g_audioIndex] + g_audioFill;
+            const size_t targetFrames = g_playStarted ? kPlayFrames : kInitialPlayFrames;
+            const size_t room = targetFrames - g_audioFill;
+            got = g_rx.readFrames(samples, room);
+            if (got == 0)
+            {
+                ++g_drops;
+            }
+            else
+            {
+                g_lastFrames = got;
+                g_audioFill += got;
+                if (g_audioFill >= targetFrames)
+                    submitAudio(g_audioFill, fmt.sampleRate);
+            }
+        }
+    }
+    else
+    {
+        delay(1);
+    }
+
+    const unsigned long now = millis();
+    if (now - g_lastStatsMs >= kStatsIntervalMs)
+    {
+        g_lastStatsMs = now;
+        const PCMFormat &fmt = g_rx.format();
+        if (fmt.sampleRate != 0 && g_packets != g_lastLoggedPackets)
+        {
+            g_lastLoggedPackets = g_packets;
+            printStats(fmt);
+            drawStatus(WiFi.localIP(), g_lastFrames);
+        }
+    }
 }
