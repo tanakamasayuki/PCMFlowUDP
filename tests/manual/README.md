@@ -188,3 +188,5 @@ CORE2_STABILITY_SECONDS=60 uv run --env-file .env pytest manual/core2_stability/
 - Use operator confirmation for speaker audio, LCD display, and physical buttons.
 - Operator prompts must state a concrete expected result and accept `y` / `n`.
 - Prefer one test function per `.py` file to avoid state leakage after flashing.
+- Core2 speaker tests receive 20 ms packets, prebuffer 80 ms before first playback, then submit 40 ms chunks to `M5.Speaker.playRaw()`. This avoids M5Unified speaker queue underruns and buffer-lifetime issues.
+- PCMFlowUDP owns packet-jitter absorption; app/helper code owns `playRaw()` async queue management. See "Receive Buffering And Latency Responsibility" in `SPEC.md`.

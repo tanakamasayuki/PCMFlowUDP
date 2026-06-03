@@ -22,6 +22,26 @@ Responsibility:
 
 PCMFlowUDP is **transport-only**. It does not encode or decode audio; combine it with PCMFlow's built-in WAV/MP3/FLAC, or with a codec sibling for compressed payloads.
 
+### 1.1 Receive Buffering And Latency Responsibility
+
+UDP audio treats packet arrival jitter and asynchronous output-device playback as separate concerns.
+
+| Layer | Responsibility | Policy |
+|---|---|---|
+| PCMFlow | PCM generation, conversion, and codec decode | Does not depend on transport jitter or hardware speaker queues |
+| PCMFlowUDP | RTP/VBAN/RAW UDP packet receive, header parsing, stable `PCMSource` / `ByteStream` supply | Provides configurable receive ring buffering for small packet jitter, `availableFrames()`, initial prebuffer thresholds, and read chunk configuration. Buffers stay small for RAM-constrained boards and may use caller-supplied storage where needed |
+| Application / output helper | Output-device-specific async queue management, such as M5Unified speaker playback | Hides buffer lifetime, triple buffering, and retry when `playRaw()` returns false |
+
+Latency targets are use-case specific.
+
+| Use case | Initial prebuffer target | Normal read chunk | Notes |
+|---|---:|---:|---|
+| VoIP / two-way conversation | 20-40 ms | 10-20 ms | 80 ms is heavy for conversational use. Use an adaptive jitter buffer if needed to cap latency |
+| LAN hardware speaker playback / manual tests | 40-80 ms | 20-40 ms | Stability-oriented. Core2 manual speaker tests use 80 ms initially, then 40 ms chunks |
+| BGM / monitoring / one-way streaming | 80 ms or more acceptable | 40 ms or more acceptable | Stability can be prioritized over low latency |
+
+PCMFlowUDP does not perform packet loss concealment. Sequence gaps and timestamp discontinuities should be observable; silence insertion, interpolation, and codec PLC are owned by the caller or codec layer.
+
 ## 2. Non-goals
 
 - **Codec functionality** — owned by PCMFlow itself or codec siblings (G.711 / G.722 / Opus).
@@ -29,7 +49,7 @@ PCMFlowUDP is **transport-only**. It does not encode or decode audio; combine it
 - **TLS / DTLS / SRTP** — out of scope.
 - **IPv6** — out of scope; Arduino's `IPAddress` is IPv4 only.
 - **Multicast** — the host Arduino core does not provide `beginMulticast()` (Windows-portability constraint), and PCMFlowUDP keeps a single behavior across platforms. Broadcast covers all in-scope use cases.
-- **Jitter buffering / packet-loss concealment** — caller's responsibility (or PCMFlow's ring buffer absorbs it).
+- **Packet-loss concealment** — interpolation or PLC for missing audio is owned by codec siblings or the caller.
 - **Built-in VBAN Service responder payload** — the Service sub-protocol's *header* is parsed and dispatched to a user callback, but the *reply payload* (device identification structure) is not built into the library. VB-Audio does not publish a normative payload spec, and reverse-engineering from GPL sources would conflict with this library's clean-room MIT policy. Users implement responders out-of-tree against their own packet captures.
 - **VBAN MIDI / Serial / additional Service subtypes**. Not music-related core.
 - **VBAN sub-codecs other than PCM** (μ-law / A-law / Opus carried inside VBAN). Standardized codec-over-UDP interop is the role of RTP (§3.4); supporting the same codecs through both VBAN sub-codecs and RTP payload types would duplicate the matrix.
@@ -133,7 +153,7 @@ Supported payload types:
 | 9 | G.722 | 8000 Hz (RTP timestamp quirk) | Pair with `G722Encoder` / `G722Decoder` |
 | 10 | L16 stereo | configurable | PCM16 BE, network byte order |
 | 11 | L16 mono | configurable | PCM16 BE, network byte order |
-| 96..127 | Opus (dynamic) | 48000 Hz typical | Pair with `OpusEncoder` / `OpusDecoder` |
+| 96..127 | dynamic | payload-specific | Opus commonly uses a 48000 Hz clock. If tools such as GStreamer send L16/16 kHz as dynamic PT 96, use `RtpReceiver::setDynamicL16PayloadType()` to receive it as L16 |
 
 API:
 
@@ -141,6 +161,7 @@ API:
 - `RtpSender::writeFrames(const int16_t *pcm, size_t frames)` — L16 path: packs PCM16 in network byte order and sends. Valid only for PT 10 / 11.
 - `RtpSender::writeEncoded(const uint8_t *bytes, size_t count)` — codec path: one call = one RTP packet with the supplied bytes as payload. Valid for PT 0 / 8 / 9 / dynamic.
 - `RtpReceiver::readFrames(int16_t *pcm, size_t maxFrames)` — L16 path: returns PCM16 in host byte order.
+- `RtpReceiver::setDynamicL16PayloadType(uint8_t pt, uint8_t channels)` — treats a dynamic PT as L16 PCM. Use this when GStreamer's `rtpL16pay` sends 16 kHz L16 as PT 96.
 - `RtpReceiver::readEncoded(uint8_t *bytes, size_t maxBytes)` — codec path: returns one packet's payload bytes.
 - `RtpReceiver::payloadType()` / `sequenceNumber()` / `timestamp()` / `ssrc()` — last-packet metadata for application-side decoding / jitter analysis.
 
@@ -181,7 +202,7 @@ PCMFlowUDP implements the subset of RFC 3550 needed for one-shot media streaming
 Out of scope:
 - **RTCP** (sender / receiver reports). RTP audio works without RTCP for many use cases; senders that absolutely need it can be added later as a separate `RtcpReporter` class without breaking the RTP classes.
 - **SRTP / DTLS-SRTP** (§2).
-- **Re-ordering / jitter buffer** (§2 — PCMFlow's ring buffer absorbs small jitter; application owns the rest).
+- **Re-ordering / packet-loss concealment** (§2). Small packet-jitter absorption is covered by §1.1, but the library does not repair missing, very late, or re-ordered packets.
 - **Payload-format extensions** beyond what the static PTs require (e.g. Opus FEC negotiation lives in SDP, not in the RTP packet).
 
 ## 8. Memory & footprint targets

@@ -22,6 +22,26 @@ PCMFlow ファミリーの **transport 専用メンバー** です。コーデ�
 
 PCMFlowUDP は **transport 専用**。エンコード / デコードは行わない。圧縮ペイロードを扱うときは PCMFlow 本体内蔵の WAV/MP3/FLAC かコーデック兄弟と組み合わせる。
 
+### 1.1 受信バッファと遅延の責務
+
+UDP audio では、packet 到着間隔の揺れと出力デバイス側の非同期再生を分けて扱う。
+
+| 層 | 責務 | 方針 |
+|---|---|---|
+| PCMFlow | PCM の生成、変換、codec decode | transport jitter や実機 speaker queue には依存しない |
+| PCMFlowUDP | RTP/VBAN/RAW UDP packet の受信、header 解析、PCMSource / ByteStream への安定供給 | 小さな packet jitter を吸収する設定可能な受信 ring buffer、`availableFrames()`、初期プリバッファ、読み出し chunk 設定を提供する。RAM 制約のため、バッファは小さく保ち、必要なら呼び出し側提供バッファを使う |
+| アプリ / 出力 helper | M5Unified speaker など出力デバイス固有の非同期 queue 管理 | `playRaw()` に渡す buffer の寿命管理、三重 buffer、`playRaw()` が false のときの retry を隠す |
+
+目標遅延は用途別に分ける。
+
+| 用途 | 初期プリバッファ目安 | 通常読み出し chunk | 備考 |
+|---|---:|---:|---|
+| VoIP / 双方向会話 | 20-40 ms | 10-20 ms | 80 ms は会話用途では重い。必要なら adaptive jitter buffer で上限を抑える |
+| LAN 内の実機 speaker 再生 / manual test | 40-80 ms | 20-40 ms | 音切れを避ける安定寄り設定。Core2 manual speaker テストは初回 80 ms、以後 40 ms |
+| BGM / 監視 / 片方向ストリーミング | 80 ms 以上も可 | 40 ms 以上も可 | 低遅延より安定性を優先できる |
+
+PCMFlowUDP は packet loss concealment は行わない。sequence 欠落や timestamp 不連続は観測可能にし、無音挿入、補間、codec PLC は呼び出し側または codec 側で扱う。
+
 ## 2. 対象外
 
 - **コーデック機能** — PCMFlow 本体またはコーデック兄弟(G.711 / G.722 / Opus)が担当
@@ -29,7 +49,7 @@ PCMFlowUDP は **transport 専用**。エンコード / デコードは行わな
 - **TLS / DTLS / SRTP** — 対象外
 - **IPv6** — 対象外。Arduino の `IPAddress` が IPv4 のみのため
 - **マルチキャスト** — host Arduino core が `beginMulticast()` を提供しないため (Windows 互換性の都合)、PCMFlowUDP もどのプラットフォームでも MC に依存しない。スコープ内のユースケースはブロードキャストで足りる
-- **ジッタバッファ / パケットロス補償** — 呼び出し側の責務(または PCMFlow のリングバッファが吸収)
+- **パケットロス補償** — 欠落した音声の補間や PLC はコーデック兄弟または呼び出し側の責務
 - **VBAN Service レスポンダの payload 部** — Service サブプロトコルの *ヘッダ* はパースしてユーザコールバックに渡すが、*reply payload* (デバイス識別構造) はライブラリ内蔵しない。VB-Audio が normative な payload 仕様を公開しておらず、GPL 実装からの reverse-engineering は本ライブラリのクリーンルーム MIT ポリシーに反するため。ユーザは自前キャプチャに対して out-of-tree でレスポンダを実装する
 - **VBAN MIDI / Serial / 他の Service サブタイプ** — 音楽コア部分ではない
 - **VBAN PCM 以外のサブコーデック** (μ-law / A-law / Opus を VBAN 内で運ぶ) — 標準コーデック over UDP は RTP の役割 (§3.4)。VBAN サブコーデックと RTP payload type の両方で同じコーデックを抱えるとマトリクスが重複するため
@@ -133,7 +153,7 @@ RTP パケットは 12 byte ヘッダ + ペイロード。ヘッダはバージ�
 | 9 | G.722 | 8000 Hz (RTP timestamp の慣行) | `G722Encoder` / `G722Decoder` と組み合わせ |
 | 10 | L16 ステレオ | 設定可能 | PCM16 BE、network byte order |
 | 11 | L16 モノラル | 設定可能 | PCM16 BE、network byte order |
-| 96..127 | Opus (dynamic) | 48000 Hz が典型 | `OpusEncoder` / `OpusDecoder` と組み合わせ |
+| 96..127 | dynamic | payload ごと | Opus は 48000 Hz が典型。GStreamer などが L16/16 kHz を dynamic PT 96 で送る場合は `RtpReceiver::setDynamicL16PayloadType()` で L16 として受ける |
 
 API:
 
@@ -141,6 +161,7 @@ API:
 - `RtpSender::writeFrames(const int16_t *pcm, size_t frames)` — L16 経路: PCM16 を network byte order でパックして送信。PT 10 / 11 のみ
 - `RtpSender::writeEncoded(const uint8_t *bytes, size_t count)` — コーデック経路: 1 呼び出し = 1 RTP パケット (渡したバイト列が payload)。PT 0 / 8 / 9 / dynamic
 - `RtpReceiver::readFrames(int16_t *pcm, size_t maxFrames)` — L16 経路: host byte order の PCM16 を返す
+- `RtpReceiver::setDynamicL16PayloadType(uint8_t pt, uint8_t channels)` — dynamic PT を L16 PCM として扱う。GStreamer の `rtpL16pay` が 16 kHz L16 を PT 96 として送る場合に使う
 - `RtpReceiver::readEncoded(uint8_t *bytes, size_t maxBytes)` — コーデック経路: 1 パケットの payload バイトを返す
 - `RtpReceiver::payloadType()` / `sequenceNumber()` / `timestamp()` / `ssrc()` — 最新パケットのメタデータ (アプリ側のデコード / ジッタ解析向け)
 
@@ -181,7 +202,7 @@ PCMFlowUDP は RFC 3550 のうち、ワンショット音声ストリーミン�
 対象外:
 - **RTCP** (sender / receiver report)。多くの RTP 音声用途は RTCP 無しで動く。必要ならば後日 `RtcpReporter` 等の別クラスとして RTP クラスを壊さずに追加可能
 - **SRTP / DTLS-SRTP** (§2)
-- **再順序化 / ジッタバッファ** (§2 — PCMFlow のリングバッファが小ジッタを吸収、アプリ側で残りを管理)
+- **再順序化 / パケットロス補償** (§2)。小さな packet jitter の吸収は §1.1 の範囲で扱うが、欠落・大幅な遅延・順序入れ替わりの修復は行わない
 - **Static PT で必要な範囲を超えた payload format 拡張** (例: Opus の FEC ネゴシエーションは SDP 側であって RTP パケットではない)
 
 ## 8. メモリ・フットプリント目標

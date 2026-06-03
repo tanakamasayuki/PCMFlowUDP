@@ -120,6 +120,8 @@ Codec interop covers G711, G722, and Opus. Detailed codec correctness belongs to
 
 Speaker tests are officially judged by human confirmation for now. An external audio loopback device may add RMS, peak, or frequency checks later, but it is not required.
 
+The overall receive-buffering and latency policy is defined in [SPEC.md](../SPEC.md) "Receive Buffering And Latency Responsibility". The Core2 speaker manual tests currently receive 20 ms packets, prebuffer 80 ms before first playback, then submit 40 ms chunks to `M5.Speaker.playRaw()`. This is a stability-oriented manual-test setting, not the low-latency VoIP profile.
+
 ## Test Matrix
 
 | Test | Purpose | Judgment | Status |
