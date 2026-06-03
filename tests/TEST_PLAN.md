@@ -303,7 +303,7 @@ cd tests
 uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
 ```
 
-Use the RTP/L16 GStreamer command in [Real-Application Commands](#real-application-commands) to send audio to the DUT.
+Use the RTP/L16 GStreamer command in [Real-Application Commands](#real-application-commands) to send audio to the DUT. GStreamer commonly emits 16 kHz L16 as dynamic PT 96, and this test accepts that PT as L16.
 
 ### core2_rtp_g711_gstreamer
 
@@ -379,7 +379,7 @@ Send RTP/L16 mono from PC to Core2:
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
   ! audio/x-raw,format=S16BE,rate=16000,channels=1 \
-  ! rtpL16pay pt=11 \
+  ! rtpL16pay \
   ! udpsink host=<core2-ip> port=5004
 ```
 

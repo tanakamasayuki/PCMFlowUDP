@@ -42,13 +42,16 @@ def test_core2_rtp_speaker(dut):
     frames = 320
     packets = 250
     ssrc = 0xC02E5001
+    samples = [
+        int(round(9000 * math.sin(2 * math.pi * 1000 * i / sample_rate)))
+        for i in range(frames)
+    ]
+    payload = pcm_to_be_bytes(samples)
+    packet_interval = frames / sample_rate
 
     with RawUdp(bind_port=0) as udp:
+        next_send = time.monotonic()
         for seq in range(packets):
-            samples = [
-                int(round(9000 * math.sin(2 * math.pi * 1000 * i / sample_rate)))
-                for i in range(frames)
-            ]
             header = RtpHeader(
                 marker=(seq == 0),
                 payload_type=RTP_PT_L16_MONO,
@@ -56,8 +59,9 @@ def test_core2_rtp_speaker(dut):
                 timestamp=seq * frames,
                 ssrc=ssrc,
             )
-            udp.send(build_packet(header, pcm_to_be_bytes(samples)), dut_ip, dut_port)
-            time.sleep(frames / sample_rate)
+            udp.send(build_packet(header, payload), dut_ip, dut_port)
+            next_send += packet_interval
+            time.sleep(max(0, next_send - time.monotonic()))
 
         rx = dut.expect(
             re.compile(

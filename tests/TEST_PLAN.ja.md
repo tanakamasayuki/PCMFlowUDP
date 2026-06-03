@@ -381,6 +381,7 @@ uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --prof
 
 目的:
 GStreamer から送った RTP/L16 mono を DUT が受信し、PCMFlowUDP の L16 path で再生できることを確認する。codec payload は `core2_rtp_g711_gstreamer/`、`core2_rtp_g722_gstreamer/`、`core2_rtp_opus_gstreamer/` で分けて確認する。
+GStreamer は 16 kHz L16 を dynamic PT 96 として送ることが多いため、このテストでは PT 96 を L16 として受ける。
 
 推奨環境:
 - Linux PC: GStreamer、ffmpeg、ffplay、Wireshark/tshark
@@ -399,7 +400,7 @@ PC から Core2 speaker へ L16 mono RTP を送る例:
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
   ! audio/x-raw,format=S16BE,rate=16000,channels=1 \
-  ! rtpL16pay pt=11 \
+  ! rtpL16pay \
   ! udpsink host=<core2-ip> port=5004
 ```
 

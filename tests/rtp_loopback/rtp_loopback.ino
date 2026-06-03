@@ -233,6 +233,50 @@ static void test_encoded_payload_types()
     }
 }
 
+static void test_dynamic_l16_payload_type()
+{
+    WiFiUDP txUdp, rxUdp;
+    EXPECT_TRUE("dynl16/tx-begin", txUdp.begin(0) == 1);
+
+    RtpReceiver rx(rxUdp);
+    RtpSender tx(txUdp);
+
+    EXPECT_TRUE("dynl16/rx-begin", rx.begin(kPort + 30));
+    EXPECT_TRUE("dynl16/rx-format", rx.setFormat({16000, 1, 16}));
+    EXPECT_TRUE("dynl16/rx-dynamic-pt", rx.setDynamicL16PayloadType(96, 1));
+    EXPECT_TRUE("dynl16/tx-init",
+                tx.begin(IPAddress(127, 0, 0, 1), kPort + 30, 0xD1160001));
+    EXPECT_TRUE("dynl16/tx-pt", tx.setPayloadType(96, 16000));
+    tx.setTimestampIncrement(4);
+
+    const int16_t input[4] = {-12000, -1000, 1000, 12000};
+    uint8_t payload[sizeof(input)] = {0};
+    for (size_t i = 0; i < 4; ++i)
+    {
+        payload[i * 2] = static_cast<uint8_t>((input[i] >> 8) & 0xFF);
+        payload[i * 2 + 1] = static_cast<uint8_t>(input[i] & 0xFF);
+    }
+
+    EXPECT_TRUE("dynl16/write", tx.writeEncoded(payload, sizeof(payload)));
+    EXPECT_TRUE("dynl16/poll", pumpUntilProgress(rx));
+    EXPECT_TRUE("dynl16/is-pcm", rx.isPcm());
+    EXPECT_EQ("dynl16/pt", 96L, (long)rx.payloadType());
+    EXPECT_EQ("dynl16/channels", 1L, (long)rx.format().channels);
+
+    int16_t output[4] = {0};
+    const size_t got = rx.readFrames(output, 4);
+    EXPECT_EQ("dynl16/readFrames", 4L, (long)got);
+
+    int mismatches = 0;
+    for (size_t i = 0; i < 4; ++i)
+        if (output[i] != input[i])
+            ++mismatches;
+    EXPECT_EQ("dynl16/sample-mismatches", 0L, (long)mismatches);
+
+    rx.end();
+    tx.end();
+}
+
 static void test_sequence_and_marker()
 {
     // Send 3 packets, verify seq increments by 1 each time and marker
@@ -306,6 +350,7 @@ void setup()
     test_l16_stereo_round_trip();
     test_encoded_round_trip_pcmu();
     test_encoded_payload_types();
+    test_dynamic_l16_payload_type();
     test_sequence_and_marker();
 
     Serial.print("TEST done ");

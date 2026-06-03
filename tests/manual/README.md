@@ -112,9 +112,11 @@ Send RTP/L16 mono from PC to Core2:
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
   ! audio/x-raw,format=S16BE,rate=16000,channels=1 \
-  ! rtpL16pay pt=11 \
+  ! rtpL16pay \
   ! udpsink host=<core2-ip> port=5004
 ```
+
+GStreamer commonly emits this 16 kHz L16 stream as dynamic PT 96; `core2_rtp_gstreamer` accepts that PT as L16.
 
 Send RTP/PCMU from PC to Core2:
 

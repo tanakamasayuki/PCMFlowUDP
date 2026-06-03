@@ -82,6 +82,18 @@ bool RtpReceiver::setFormat(const PCMFormat &fmt)
     return true;
 }
 
+bool RtpReceiver::setDynamicL16PayloadType(uint8_t payloadType, uint8_t channels)
+{
+    if (payloadType > 0x7F || channels == 0)
+    {
+        error_ = Error::BadHeader;
+        return false;
+    }
+    dynamicL16Pt_ = payloadType;
+    dynamicL16Channels_ = channels;
+    return true;
+}
+
 bool RtpReceiver::poll()
 {
     if (!ready_)
@@ -119,9 +131,12 @@ bool RtpReceiver::poll()
     if (isPcm())
     {
         // Lock format from wire on first L16 packet (or honor caller's
-        // setFormat). PT 10 = stereo, PT 11 = mono.
+        // setFormat). PT 10 = stereo, PT 11 = mono. Dynamic L16 PTs use
+        // the caller-declared channel count because RTP only carries PT.
         const uint8_t channels =
-            (h.payloadType == static_cast<uint8_t>(pcmflowudp::RtpPayloadType::L16Stereo)) ? 2u : 1u;
+            (h.payloadType == dynamicL16Pt_)
+                ? dynamicL16Channels_
+                : ((h.payloadType == static_cast<uint8_t>(pcmflowudp::RtpPayloadType::L16Stereo)) ? 2u : 1u);
         if (format_.sampleRate == 0)
         {
             // Sample rate is not on the wire; default a reasonable

@@ -16,9 +16,10 @@
 // Receives RTP packets on a local UDP port. Two complementary output
 // paths, chosen by the inbound packet's payload type:
 //
-//   * For L16 PTs (10 / 11), the payload is converted from network to
-//     host byte order and queued into an internal PCM ring buffer.
-//     readFrames() pops samples via PCMSource.
+//   * For L16 PTs (10 / 11), and an optional caller-declared dynamic L16
+//     PT, the payload is converted from network to host byte order and
+//     queued into an internal PCM ring buffer. readFrames() pops samples
+//     via PCMSource.
 //
 //   * For non-L16 PTs, the most recent packet's payload bytes are
 //     kept in a single-packet hold and exposed via readEncoded().
@@ -57,6 +58,11 @@ public:
     // since the wire does not carry it explicitly.
     bool setFormat(const PCMFormat &format);
 
+    // Treat a dynamic RTP payload type as L16 PCM with the given channel
+    // count. This is useful for tools such as GStreamer, which commonly
+    // send 16 kHz L16 as dynamic PT 96 instead of static PT 11.
+    bool setDynamicL16PayloadType(uint8_t payloadType, uint8_t channels);
+
     // Non-blocking pump. Returns true if exactly one RTP packet was
     // successfully read and dispatched (L16 to the PCM ring, others to
     // the single-packet encoded hold).
@@ -71,7 +77,8 @@ public:
     bool isPcm() const
     {
         return lastPt_ == static_cast<uint8_t>(pcmflowudp::RtpPayloadType::L16Mono) ||
-               lastPt_ == static_cast<uint8_t>(pcmflowudp::RtpPayloadType::L16Stereo);
+               lastPt_ == static_cast<uint8_t>(pcmflowudp::RtpPayloadType::L16Stereo) ||
+               (dynamicL16Channels_ != 0 && lastPt_ == dynamicL16Pt_);
     }
 
     // Encoded path: copy the most recent non-L16 packet's payload into
@@ -98,6 +105,8 @@ private:
     Error error_ = Error::NotReady;
 
     PCMFormat format_{};
+    uint8_t dynamicL16Pt_ = 0xFF;
+    uint8_t dynamicL16Channels_ = 0;
 
     // Last-packet metadata.
     uint8_t lastPt_ = 0xFF;

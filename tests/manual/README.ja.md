@@ -112,9 +112,11 @@ PC から Core2 へ RTP/L16 mono を送る例:
 ```sh
 gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
   ! audio/x-raw,format=S16BE,rate=16000,channels=1 \
-  ! rtpL16pay pt=11 \
+  ! rtpL16pay \
   ! udpsink host=<core2-ip> port=5004
 ```
+
+GStreamer はこの 16 kHz L16 stream を dynamic PT 96 として送ることが多いため、`core2_rtp_gstreamer` は PT 96 を L16 として受けます。
 
 PC から Core2 へ RTP/PCMU を送る例:
 

@@ -15,11 +15,21 @@ static constexpr unsigned long kWifiTimeoutMs = 60000;
 static constexpr uint16_t kRxPort = 5004;
 static constexpr uint32_t kSampleRate = 16000;
 static constexpr size_t kMaxFrames = 320;
+static constexpr size_t kPlayFrames = kMaxFrames * 2;
+static constexpr size_t kInitialPlayFrames = kMaxFrames * 4;
+static constexpr size_t kAudioBuffers = 3;
+static constexpr unsigned long kStatsIntervalMs = 500;
+static constexpr uint8_t kGstreamerL16PayloadType = 96;
 
 WiFiUDP g_udp;
 RtpReceiver g_rx(g_udp);
 static uint32_t g_packets = 0;
 static uint32_t g_drops = 0;
+static unsigned long g_lastStatsMs = 0;
+static int16_t g_audio[kAudioBuffers][kInitialPlayFrames] = {};
+static size_t g_audioIndex = 0;
+static size_t g_audioFill = 0;
+static bool g_playStarted = false;
 
 static bool connectWifi(IPAddress &ip)
 {
@@ -100,6 +110,7 @@ void setup()
     M5.Speaker.setVolume(160);
 
     g_rx.setFormat({kSampleRate, 1, 16});
+    g_rx.setDynamicL16PayloadType(kGstreamerL16PayloadType, 1);
     if (!g_rx.begin(kRxPort))
     {
         Serial.println("FAIL rx-begin");
@@ -125,31 +136,49 @@ void loop()
         return;
     }
 
-    int16_t samples[kMaxFrames] = {0};
-    const size_t got = g_rx.readFrames(samples, kMaxFrames);
+    int16_t *samples = g_audio[g_audioIndex] + g_audioFill;
+    const size_t targetFrames = g_playStarted ? kPlayFrames : kInitialPlayFrames;
+    const size_t room = targetFrames - g_audioFill;
+    const size_t got = g_rx.readFrames(samples, room);
     ++g_packets;
 
-    if (g_rx.payloadType() != static_cast<uint8_t>(pcmflowudp::RtpPayloadType::L16Mono) || got == 0)
+    if (g_rx.payloadType() != kGstreamerL16PayloadType || got == 0)
     {
         ++g_drops;
     }
     else
     {
-        M5.Speaker.playRaw(samples, got, kSampleRate, false, 1, 0, false);
+        g_audioFill += got;
+        if (g_audioFill >= targetFrames)
+        {
+            while (!M5.Speaker.playRaw(g_audio[g_audioIndex], g_audioFill, kSampleRate, false, 1, 0, false))
+            {
+                delay(1);
+            }
+            g_audioIndex = (g_audioIndex + 1) % kAudioBuffers;
+            g_audioFill = 0;
+            g_playStarted = true;
+        }
     }
 
-    Serial.print("RTP-GST-RX pt=");
-    Serial.print(g_rx.payloadType());
-    Serial.print(" seq=");
-    Serial.print(g_rx.sequenceNumber());
-    Serial.print(" ssrc=");
-    Serial.print(g_rx.ssrc());
-    Serial.print(" frames=");
-    Serial.print(got);
-    Serial.print(" packets=");
-    Serial.print(g_packets);
-    Serial.print(" drops=");
-    Serial.println(g_drops);
+    const unsigned long now = millis();
+    if (now - g_lastStatsMs >= kStatsIntervalMs)
+    {
+        g_lastStatsMs = now;
 
-    drawStats(got);
+        Serial.print("RTP-GST-RX pt=");
+        Serial.print(g_rx.payloadType());
+        Serial.print(" seq=");
+        Serial.print(g_rx.sequenceNumber());
+        Serial.print(" ssrc=");
+        Serial.print(g_rx.ssrc());
+        Serial.print(" frames=");
+        Serial.print(got);
+        Serial.print(" packets=");
+        Serial.print(g_packets);
+        Serial.print(" drops=");
+        Serial.println(g_drops);
+
+        drawStats(got);
+    }
 }
