@@ -121,7 +121,7 @@ manual テストの codec 相互接続は G711、G722、Opus を対象にする�
 
 スピーカー系テストの合否は当面、人間による確認を正式な判定方法にする。外部オーディオループバック機器がある環境では RMS / peak / 周波数検出で自動判定を追加できるが、必須条件にはしない。
 
-受信バッファと遅延の全体方針は [SPEC.ja.md](../SPEC.ja.md) の「受信バッファと遅延の責務」に従う。Core2 speaker 系 manual テストでは、現時点の実装として 20 ms packet を受信し、初回 80 ms、以後 40 ms chunk で `M5.Speaker.playRaw()` に渡す。これは低遅延 VoIP 設定ではなく、実機 speaker 確認を安定させるための manual test 設定である。
+受信バッファと遅延の全体方針は [SPEC.ja.md](../SPEC.ja.md) の「受信バッファと遅延の責務」に従う。Core2 speaker 系 manual テストでは、現時点の実装として 20 ms packet を受信し、標準で `RtpReceiver::hardwareSpeakerPcmBuffer()` を使う。初回 40 ms、以後 40 ms chunk で `M5.Speaker.playRaw()` に渡す。これは低遅延 VoIP 設定ではなく、実機 speaker 確認を安定させるための設定である。
 
 ## テスト一覧
 

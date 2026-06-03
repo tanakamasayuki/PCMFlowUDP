@@ -277,6 +277,49 @@ static void test_dynamic_l16_payload_type()
     tx.end();
 }
 
+static void test_receiver_pcm_buffer_controls()
+{
+    WiFiUDP txUdp, rxUdp;
+    EXPECT_TRUE("rxbuf/tx-begin", txUdp.begin(0) == 1);
+
+    RtpReceiver rx(rxUdp);
+    RtpSender tx(txUdp);
+    static uint8_t rxBuffer[4096];
+
+    EXPECT_TRUE("rxbuf/set-buffer", rx.setPcmBuffer(rxBuffer, sizeof(rxBuffer)));
+    EXPECT_EQ("rxbuf/capacity", (long)sizeof(rxBuffer), (long)rx.pcmBufferCapacityBytes());
+    EXPECT_TRUE("rxbuf/rx-format", rx.setFormat({16000, 1, 16}));
+    EXPECT_EQ("rxbuf/frames-40ms", 640L, (long)rx.framesForMs(40));
+    EXPECT_EQ("rxbuf/frames-80ms", 1280L, (long)rx.framesForMs(80));
+
+    const RtpReceiver::PcmBufferProfile speakerProfile = RtpReceiver::hardwareSpeakerPcmBuffer();
+    EXPECT_EQ("rxbuf/profile-initial", 40L, (long)speakerProfile.initialPrebufferMs);
+    EXPECT_EQ("rxbuf/profile-chunk", 40L, (long)speakerProfile.readChunkMs);
+
+    EXPECT_TRUE("rxbuf/rx-begin", rx.begin(kPort + 31));
+    EXPECT_TRUE("rxbuf/buffer-locked", !rx.setPcmBuffer(rxBuffer, sizeof(rxBuffer)));
+    EXPECT_TRUE("rxbuf/tx-init",
+                tx.begin(IPAddress(127, 0, 0, 1), kPort + 31, 0xB0FF0001));
+    EXPECT_TRUE("rxbuf/tx-format", tx.setFormat({16000, 1, 16}));
+
+    static int16_t input[320];
+    for (size_t i = 0; i < 320; ++i)
+        input[i] = static_cast<int16_t>((int)i - 160);
+
+    EXPECT_EQ("rxbuf/write", 320L, (long)tx.writeFrames(input, 320));
+    EXPECT_TRUE("rxbuf/poll", pumpUntilProgress(rx));
+    EXPECT_EQ("rxbuf/available", 320L, (long)rx.availableFrames());
+
+    int16_t output[160] = {0};
+    EXPECT_EQ("rxbuf/read-half", 160L, (long)rx.readFrames(output, 160));
+    EXPECT_EQ("rxbuf/available-after-read", 160L, (long)rx.availableFrames());
+
+    rx.end();
+    EXPECT_TRUE("rxbuf/restore-internal", rx.setPcmBuffer(nullptr, 0));
+    EXPECT_EQ("rxbuf/default-capacity", 2048L, (long)rx.pcmBufferCapacityBytes());
+    tx.end();
+}
+
 static void test_sequence_and_marker()
 {
     // Send 3 packets, verify seq increments by 1 each time and marker
@@ -351,6 +394,7 @@ void setup()
     test_encoded_round_trip_pcmu();
     test_encoded_payload_types();
     test_dynamic_l16_payload_type();
+    test_receiver_pcm_buffer_controls();
     test_sequence_and_marker();
 
     Serial.print("TEST done ");

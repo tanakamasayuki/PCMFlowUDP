@@ -34,6 +34,16 @@
 class RtpReceiver : public PCMSource
 {
 public:
+    struct PcmBufferProfile
+    {
+        uint16_t initialPrebufferMs;
+        uint16_t readChunkMs;
+    };
+
+    static PcmBufferProfile lowLatencyPcmBuffer() { return {40, 20}; }
+    static PcmBufferProfile hardwareSpeakerPcmBuffer() { return {40, 40}; }
+    static PcmBufferProfile stableSpeakerPcmBuffer() { return {80, 40}; }
+
     enum class Error : uint8_t
     {
         None,
@@ -50,6 +60,13 @@ public:
 
     bool begin(uint16_t localPort);
     void end();
+
+    // Provide caller-owned PCM ring storage for the L16 path. This lets
+    // applications choose larger prebuffer targets without increasing
+    // the default RAM cost for every RtpReceiver instance. Must be called
+    // before begin(); passing nullptr or 0 restores the internal buffer.
+    bool setPcmBuffer(uint8_t *buffer, size_t bytes);
+    size_t pcmBufferCapacityBytes() const { return queueCapacity_; }
 
     // Optionally pre-declare the expected L16 format so format() returns
     // it before any packet has arrived. If the first incoming L16 packet
@@ -92,6 +109,9 @@ public:
 
     // PCMSource interface (L16 path) -----------------------------------
     const PCMFormat &format() const override { return format_; }
+    size_t availableFrames() const;
+    size_t availableBytes() const { return queueCount_; }
+    size_t framesForMs(uint16_t ms) const;
     size_t readFrames(void *out, size_t frameCount) override;
     bool isEof() const override { return false; }
     bool isReady() const override { return ready_; }
@@ -117,7 +137,9 @@ private:
 
     // L16 ring (PCM in host byte order).
     static constexpr size_t kQueueBytes = 2048;
-    uint8_t queue_[kQueueBytes] = {};
+    uint8_t internalQueue_[kQueueBytes] = {};
+    uint8_t *queue_ = internalQueue_;
+    size_t queueCapacity_ = kQueueBytes;
     size_t queueHead_ = 0;
     size_t queueTail_ = 0;
     size_t queueCount_ = 0;

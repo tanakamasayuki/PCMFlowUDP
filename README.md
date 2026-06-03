@@ -55,6 +55,8 @@ PCMFlowUDP is the **transport-only member** of the PCMFlow family.
 
 Compose a codec sibling with PCMFlowUDP to send compressed audio over UDP. For example, `G711Encoder` bytes → `RtpSender::writeEncoded()` (with payload type set to PCMU) produces a standards-compliant VoIP stream that any SIP softphone can play.
 
+For RTP/L16 receive playback, `RtpReceiver` includes a small internal PCM ring and can use caller-supplied storage via `setPcmBuffer()`. Standard profiles are exposed as `lowLatencyPcmBuffer()` (40/20 ms), `hardwareSpeakerPcmBuffer()` (40/40 ms), and `stableSpeakerPcmBuffer()` (80/40 ms). On M5Stack Core2 speaker playback, the current tested default candidate is `hardwareSpeakerPcmBuffer()`.
+
 ---
 
 ## Headline use case — ESP32 mic → PC (VBAN Receptor)

@@ -71,6 +71,27 @@ void RtpReceiver::end()
     error_ = Error::NotReady;
 }
 
+bool RtpReceiver::setPcmBuffer(uint8_t *buffer, size_t bytes)
+{
+    if (ready_)
+    {
+        error_ = Error::NotReady;
+        return false;
+    }
+    if (buffer == nullptr || bytes == 0)
+    {
+        queue_ = internalQueue_;
+        queueCapacity_ = sizeof(internalQueue_);
+    }
+    else
+    {
+        queue_ = buffer;
+        queueCapacity_ = bytes;
+    }
+    queueHead_ = queueTail_ = queueCount_ = 0;
+    return true;
+}
+
 bool RtpReceiver::setFormat(const PCMFormat &fmt)
 {
     if (!fmt.isValid() || fmt.bitsPerSample != 16)
@@ -158,7 +179,7 @@ bool RtpReceiver::poll()
             scratch[i] = buf[payloadStart + i + 1];
             scratch[i + 1] = buf[payloadStart + i];
         }
-        ringPush(queue_, kQueueBytes, queueHead_, queueTail_, queueCount_,
+        ringPush(queue_, queueCapacity_, queueHead_, queueTail_, queueCount_,
                  scratch, aligned);
     }
     else
@@ -174,6 +195,21 @@ bool RtpReceiver::poll()
     return true;
 }
 
+size_t RtpReceiver::availableFrames() const
+{
+    const size_t bytesPerFrame = format_.bytesPerFrame();
+    if (bytesPerFrame == 0)
+        return 0;
+    return queueCount_ / bytesPerFrame;
+}
+
+size_t RtpReceiver::framesForMs(uint16_t ms) const
+{
+    if (format_.sampleRate == 0)
+        return 0;
+    return (static_cast<size_t>(format_.sampleRate) * ms) / 1000u;
+}
+
 size_t RtpReceiver::readFrames(void *out, size_t frameCount)
 {
     if (!ready_ || out == nullptr || frameCount == 0)
@@ -182,12 +218,12 @@ size_t RtpReceiver::readFrames(void *out, size_t frameCount)
         return 0;
 
     const size_t bytesPerFrame = format_.bytesPerFrame();
-    const size_t availFrames = queueCount_ / bytesPerFrame;
+    const size_t availFrames = availableFrames();
     const size_t takeFrames =
         (frameCount < availFrames) ? frameCount : availFrames;
     if (takeFrames == 0)
         return 0;
-    return ringPop(queue_, kQueueBytes, queueHead_, queueCount_,
+    return ringPop(queue_, queueCapacity_, queueHead_, queueCount_,
                    static_cast<uint8_t *>(out), takeFrames * bytesPerFrame) /
            bytesPerFrame;
 }

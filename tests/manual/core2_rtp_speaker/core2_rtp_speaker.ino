@@ -15,17 +15,20 @@ static constexpr unsigned long kWifiTimeoutMs = 60000;
 static constexpr uint16_t kRxPort = 5004;
 static constexpr uint32_t kSampleRate = 16000;
 static constexpr size_t kMaxFrames = 320;
-static constexpr size_t kPlayFrames = kMaxFrames * 2;
-static constexpr size_t kInitialPlayFrames = kMaxFrames * 4;
+static constexpr size_t kMaxPlayFrames = kMaxFrames * 4;
 static constexpr size_t kAudioBuffers = 3;
+static constexpr size_t kRxPcmBufferBytes = 4096;
 static constexpr unsigned long kStatsIntervalMs = 500;
 
 WiFiUDP g_udp;
 RtpReceiver g_rx(g_udp);
+static uint8_t g_rxPcmBuffer[kRxPcmBufferBytes] = {};
 static uint32_t g_packets = 0;
 static uint32_t g_drops = 0;
 static unsigned long g_lastStatsMs = 0;
-static int16_t g_audio[kAudioBuffers][kInitialPlayFrames] = {};
+static int16_t g_audio[kAudioBuffers][kMaxPlayFrames] = {};
+static size_t g_playFrames = kMaxFrames * 2;
+static size_t g_initialPlayFrames = kMaxFrames * 2;
 static size_t g_audioIndex = 0;
 static size_t g_audioFill = 0;
 static bool g_playStarted = false;
@@ -109,6 +112,10 @@ void setup()
     M5.Speaker.setVolume(160);
 
     g_rx.setFormat({kSampleRate, 1, 16});
+    g_rx.setPcmBuffer(g_rxPcmBuffer, sizeof(g_rxPcmBuffer));
+    const RtpReceiver::PcmBufferProfile profile = RtpReceiver::hardwareSpeakerPcmBuffer();
+    g_initialPlayFrames = g_rx.framesForMs(profile.initialPrebufferMs);
+    g_playFrames = g_rx.framesForMs(profile.readChunkMs);
     if (!g_rx.begin(kRxPort))
     {
         Serial.println("FAIL rx-begin");
@@ -135,7 +142,7 @@ void loop()
     }
 
     int16_t *samples = g_audio[g_audioIndex] + g_audioFill;
-    const size_t targetFrames = g_playStarted ? kPlayFrames : kInitialPlayFrames;
+    const size_t targetFrames = g_playStarted ? g_playFrames : g_initialPlayFrames;
     const size_t room = targetFrames - g_audioFill;
     const size_t got = g_rx.readFrames(samples, room);
     ++g_packets;

@@ -37,7 +37,7 @@ UDP audio では、packet 到着間隔の揺れと出力デバイス側の非同
 | 用途 | 初期プリバッファ目安 | 通常読み出し chunk | 備考 |
 |---|---:|---:|---|
 | VoIP / 双方向会話 | 20-40 ms | 10-20 ms | 80 ms は会話用途では重い。必要なら adaptive jitter buffer で上限を抑える |
-| LAN 内の実機 speaker 再生 / manual test | 40-80 ms | 20-40 ms | 音切れを避ける安定寄り設定。Core2 manual speaker テストは初回 80 ms、以後 40 ms |
+| LAN 内の実機 speaker 再生 / manual test | 40-80 ms | 20-40 ms | 音切れを避ける安定寄り設定。Core2 manual speaker テストは標準で 40/40 ms の hardware-speaker profile を使う |
 | BGM / 監視 / 片方向ストリーミング | 80 ms 以上も可 | 40 ms 以上も可 | 低遅延より安定性を優先できる |
 
 デバイス固有 speaker helper では、通常読み出し chunk は出力 API 側の都合にも合わせる。M5Unified `Speaker.playRaw()` + Core2 では、RTP/L16 tuning の結果、RTP 受信 counter が正常 (`drop=0`、`empty=0`、`wait=0`) でも 20 ms 再生 chunk (`p0-low`、`p1-voip`) で聴感上の途切れが出た。したがって現時点の Core2 speaker helper default 候補は、初期 40 ms + 再生 chunk 40 ms の `p2-balanced` とし、初期 80 ms の `p4-stable` は VoIP default ではなく安定性確認用の基準として扱う。
@@ -162,6 +162,10 @@ API:
 - `RtpSender::setPayloadType(uint8_t pt, uint32_t clockRate)` — コーデック枠を設定。SSRC は `begin()` 時に乱数で決定、`setSsrc()` で上書き可能
 - `RtpSender::writeFrames(const int16_t *pcm, size_t frames)` — L16 経路: PCM16 を network byte order でパックして送信。PT 10 / 11 のみ
 - `RtpSender::writeEncoded(const uint8_t *bytes, size_t count)` — コーデック経路: 1 呼び出し = 1 RTP パケット (渡したバイト列が payload)。PT 0 / 8 / 9 / dynamic
+- `RtpReceiver::setPcmBuffer(uint8_t *buffer, size_t bytes)` — L16 受信 ring storage を呼び出し側から渡す。既定の internal ring では目標 prebuffer に足りない場合、`begin()` 前に呼ぶ
+- `RtpReceiver::availableFrames()` / `availableBytes()` — 読み出し待ちの L16 PCM 量を返す
+- `RtpReceiver::framesForMs(uint16_t ms)` — receiver に設定された sample rate で ms を frames に変換する
+- `RtpReceiver::lowLatencyPcmBuffer()` / `hardwareSpeakerPcmBuffer()` / `stableSpeakerPcmBuffer()` — 40/20 ms、40/40 ms、80/40 ms 用の標準 prebuffer/chunk profile
 - `RtpReceiver::readFrames(int16_t *pcm, size_t maxFrames)` — L16 経路: host byte order の PCM16 を返す
 - `RtpReceiver::setDynamicL16PayloadType(uint8_t pt, uint8_t channels)` — dynamic PT を L16 PCM として扱う。GStreamer の `rtpL16pay` が 16 kHz L16 を PT 96 として送る場合に使う
 - `RtpReceiver::readEncoded(uint8_t *bytes, size_t maxBytes)` — コーデック経路: 1 パケットの payload バイトを返す
@@ -214,7 +218,7 @@ PCMFlowUDP は RFC 3550 のうち、ワンショット音声ストリーミン�
 | Flash (フル、RAW + VBAN + RTP、送受信両方) | ≤ 20 KB |
 | Flash (RAW のみ、片方向) | ≤ 3 KB |
 | RAM、`VbanSender` / `VbanReceiver` 1 インスタンスあたり | ≤ 2 KB (1500 byte パケットバッファ込み) |
-| RAM、`RtpSender` / `RtpReceiver` 1 インスタンスあたり | ≤ 2 KB (1500 byte パケットバッファ込み) |
+| RAM、`RtpSender` / `RtpReceiver` 1 インスタンスあたり | 既定 internal storage は ≤ 2 KB。大きな RTP 受信 prebuffer は `RtpReceiver::setPcmBuffer()` で呼び出し側 storage を渡す |
 | RAM、`RawUdpSink` / `RawUdpStream` 1 インスタンスあたり | ≤ 256 B + 呼び出し側バッファ |
 | 呼び出し毎のスクラッチ | 無し (動的確保なし) |
 

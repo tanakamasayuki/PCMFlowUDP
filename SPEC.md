@@ -37,7 +37,7 @@ Latency targets are use-case specific.
 | Use case | Initial prebuffer target | Normal read chunk | Notes |
 |---|---:|---:|---|
 | VoIP / two-way conversation | 20-40 ms | 10-20 ms | 80 ms is heavy for conversational use. Use an adaptive jitter buffer if needed to cap latency |
-| LAN hardware speaker playback / manual tests | 40-80 ms | 20-40 ms | Stability-oriented. Core2 manual speaker tests use 80 ms initially, then 40 ms chunks |
+| LAN hardware speaker playback / manual tests | 40-80 ms | 20-40 ms | Stability-oriented. Core2 manual speaker tests use the 40/40 ms hardware-speaker profile by default |
 | BGM / monitoring / one-way streaming | 80 ms or more acceptable | 40 ms or more acceptable | Stability can be prioritized over low latency |
 
 For device-specific speaker helpers, the normal read chunk must also match the output API. On M5Unified `Speaker.playRaw()` with Core2, manual RTP/L16 tuning showed audible gaps with 20 ms playback chunks (`p0-low`, `p1-voip`) even when RTP receive counters stayed clean (`drop=0`, `empty=0`, `wait=0`). The current Core2 speaker-helper default candidate is therefore 40 ms initial prebuffer with 40 ms playback chunks (`p2-balanced`), with 80 ms initial prebuffer (`p4-stable`) kept as a stability reference rather than a VoIP default.
@@ -162,6 +162,10 @@ API:
 - `RtpSender::setPayloadType(uint8_t pt, uint32_t clockRate)` — configures the codec slot. SSRC defaults to a random value at `begin()` time; override with `setSsrc()`.
 - `RtpSender::writeFrames(const int16_t *pcm, size_t frames)` — L16 path: packs PCM16 in network byte order and sends. Valid only for PT 10 / 11.
 - `RtpSender::writeEncoded(const uint8_t *bytes, size_t count)` — codec path: one call = one RTP packet with the supplied bytes as payload. Valid for PT 0 / 8 / 9 / dynamic.
+- `RtpReceiver::setPcmBuffer(uint8_t *buffer, size_t bytes)` — optional caller-owned L16 receive ring storage. Call before `begin()` when the default internal ring is too small for the target prebuffer.
+- `RtpReceiver::availableFrames()` / `availableBytes()` — returns currently buffered L16 PCM waiting to be read.
+- `RtpReceiver::framesForMs(uint16_t ms)` — converts a duration to frames using the receiver's configured sample rate.
+- `RtpReceiver::lowLatencyPcmBuffer()` / `hardwareSpeakerPcmBuffer()` / `stableSpeakerPcmBuffer()` — standard prebuffer/chunk profiles for 40/20 ms, 40/40 ms, and 80/40 ms use cases.
 - `RtpReceiver::readFrames(int16_t *pcm, size_t maxFrames)` — L16 path: returns PCM16 in host byte order.
 - `RtpReceiver::setDynamicL16PayloadType(uint8_t pt, uint8_t channels)` — treats a dynamic PT as L16 PCM. Use this when GStreamer's `rtpL16pay` sends 16 kHz L16 as PT 96.
 - `RtpReceiver::readEncoded(uint8_t *bytes, size_t maxBytes)` — codec path: returns one packet's payload bytes.
@@ -214,7 +218,7 @@ Out of scope:
 | Flash (full library, RAW + VBAN + RTP, send + recv) | ≤ 20 KB |
 | Flash (RAW only, one direction) | ≤ 3 KB |
 | RAM, per `VbanSender` / `VbanReceiver` instance | ≤ 2 KB (including one 1500-byte packet buffer) |
-| RAM, per `RtpSender` / `RtpReceiver` instance | ≤ 2 KB (including one 1500-byte packet buffer) |
+| RAM, per `RtpSender` / `RtpReceiver` instance | ≤ 2 KB default internal storage; larger RTP receive prebuffers use caller-supplied storage via `RtpReceiver::setPcmBuffer()` |
 | RAM, per `RawUdpSink` / `RawUdpStream` instance | ≤ 256 B + caller-supplied buffer |
 | Per-call scratch | none (no dynamic allocation) |
 
