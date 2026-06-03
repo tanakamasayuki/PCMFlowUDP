@@ -144,6 +144,13 @@ manual テストの codec 相互接続は G711、G722、Opus を対象にする�
 目的:
 Core2 固有の manual テスト基盤が動くことを確認する。
 
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_smoke/core2_smoke.py -v -s --profile m5stack_core2
+```
+
 手順:
 1. Core2 を USB-C で PC に接続する。
 2. `.env` にシリアルポートと Wi-Fi 認証情報を設定する。
@@ -161,6 +168,13 @@ Core2 固有の manual テスト基盤が動くことを確認する。
 目的:
 Core2 の Wi-Fi 実ネットワーク上で `RawUdpStream` / `RawUdpSink` の最小送受信経路を確認する。
 
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_raw_udp_ping/core2_raw_udp_ping.py -v -s --profile m5stack_core2
+```
+
 手順:
 1. DUT が `DUT-READY ip=<addr> port=<port>` を出す。
 2. Python が 64 byte の既知 payload を DUT に送る。
@@ -175,6 +189,13 @@ Core2 の Wi-Fi 実ネットワーク上で `RawUdpStream` / `RawUdpSink` の最
 目的:
 VBAN 受信、PCM16 デコード、Core2 スピーカー出力の一連の経路を確認する。
 
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_vban_speaker/core2_vban_speaker.py -v -s --profile m5stack_core2
+```
+
 手順:
 1. Python が 1 kHz sine wave の VBAN packet を 5 秒間送信する。
 2. DUT は受信 packet 数、sample rate、channel 数、drop 数を Serial と LCD に表示する。
@@ -188,6 +209,13 @@ VBAN 受信、PCM16 デコード、Core2 スピーカー出力の一連の経路
 
 目的:
 Core2 マイク入力を VBAN sender 経由で PC 側 Python が受信できることを確認する。
+
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_vban_mic/core2_vban_mic.py -v -s --profile m5stack_core2
+```
 
 手順:
 1. DUT は Python が指定した IP/port へ VBAN PCM16 mono を送る。
@@ -209,6 +237,13 @@ Core2 マイク入力を実ソフトの VBAN Receptor または Voicemeeter で�
 - Windows PC
 - VB-Audio VBAN Receptor または Voicemeeter
 - Core2 と Windows PC が同一 LAN
+
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_vban_receptor/core2_vban_receptor.py -v -s --profile m5stack_core2
+```
 
 手順:
 1. Windows PC の IP アドレスを確認する。
@@ -238,6 +273,13 @@ Voicemeeter から送信した VBAN PCM stream を Core2 が受信し、Core2 �
 - VB-Audio Voicemeeter
 - Core2 と Windows PC が同一 LAN
 
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_voicemeeter_to_speaker/core2_voicemeeter_to_speaker.py -v -s --profile m5stack_core2
+```
+
 手順:
 1. DUT が `DUT-READY ip=<core2-ip> port=6980 stream=PcToCore2` を出す。
 2. Voicemeeter の VBAN outbound stream を有効にし、送信先を `<core2-ip>:6980` にする。
@@ -260,6 +302,13 @@ tshark -i any -f "udp port 6980" -Y "udp.port == 6980" -T fields -e ip.src -e ip
 目的:
 RTP 受信、payload decode、Core2 スピーカー出力の経路を確認する。
 
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_speaker/core2_rtp_speaker.py -v -s --profile m5stack_core2
+```
+
 手順:
 1. Python が RTP packet として 1 kHz sine wave を 5 秒間送信する。
 2. DUT は sequence、timestamp、packet 数、drop 数を Serial と LCD に表示する。
@@ -273,6 +322,13 @@ RTP 受信、payload decode、Core2 スピーカー出力の経路を確認す�
 
 目的:
 Core2 マイク入力を RTP sender 経由で PC 側 Python が受信できることを確認する。
+
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --profile m5stack_core2
+```
 
 手順:
 1. DUT は Python が指定した IP/port へ RTP payload を送る。
@@ -295,6 +351,13 @@ GStreamer から送った RTP/L16 mono を DUT が受信し、PCMFlowUDP の L16
 - 任意: VLC または SIP softphone
 - Core2 と PC が同一 LAN
 
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
+```
+
 PC から Core2 speaker へ L16 mono RTP を送る例:
 
 ```sh
@@ -308,6 +371,13 @@ gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
 
 目的:
 GStreamer から送った RTP/PCMU を Core2 が受信し、`PCMFlowG711` で decode して再生できることを確認する。
+
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_g711_gstreamer/core2_rtp_g711_gstreamer.py -v -s --profile m5stack_core2
+```
 
 PC から Core2 speaker へ PCMU RTP を送る例:
 
@@ -331,6 +401,13 @@ ffmpeg -re -i input.wav -ac 1 -ar 8000 -c:a pcm_mulaw -f rtp rtp://<core2-ip>:50
 目的:
 GStreamer から送った RTP/G.722 を Core2 が受信し、`PCMFlowG722` で decode して再生できることを確認する。
 
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_g722_gstreamer/core2_rtp_g722_gstreamer.py -v -s --profile m5stack_core2
+```
+
 PC から Core2 speaker へ G.722 RTP を送る例:
 
 ```sh
@@ -346,6 +423,13 @@ gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
 
 目的:
 GStreamer から送った RTP/Opus dynamic PT 96 を DUT が受信し、`PCMFlowOpus` で decode して再生できることを確認する。
+
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_opus_gstreamer/core2_rtp_opus_gstreamer.py -v -s --profile m5stack_core2
+```
 
 PC から DUT speaker へ Opus RTP を送る例:
 
@@ -394,6 +478,20 @@ tshark -i any -f "udp port 5004" -Y "rtp || udp.port == 5004"
 
 目的:
 Core2 の Wi-Fi 実環境で UDP audio stream を継続したとき、heap 漏れ、packet drop、Wi-Fi 切断後の復帰不能がないことを確認する。
+
+実行コマンド:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
+```
+
+短時間で動作確認する場合:
+
+```sh
+cd tests
+CORE2_STABILITY_SECONDS=60 uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
+```
 
 手順:
 1. Python が VBAN または RTP の sine wave を 30 分送信する。

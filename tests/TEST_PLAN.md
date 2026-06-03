@@ -137,6 +137,223 @@ Speaker tests are officially judged by human confirmation for now. An external a
 | `core2_rtp_opus_gstreamer/` | Verify DUT Opus decode/playback of RTP/Opus dynamic PT sent by GStreamer | Build size + runtime heap + audio check | Added |
 | `core2_stability/` | Run UDP audio for 30 minutes and check drops, heap, and Wi-Fi state | Serial stats | Added |
 
+## Test Details
+
+### core2_smoke
+
+Purpose:
+Verify that the Core2 manual test foundation works.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_smoke/core2_smoke.py -v -s --profile m5stack_core2
+```
+
+Pass conditions:
+- Serial prints `CORE2-READY ip=<addr>`.
+- The LCD shows the IP address.
+- Pressing A/B/C prints `BUTTON A` / `BUTTON B` / `BUTTON C`.
+
+### core2_raw_udp_ping
+
+Purpose:
+Verify the minimum `RawUdpStream` / `RawUdpSink` path on a real Core2 Wi-Fi network.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_raw_udp_ping/core2_raw_udp_ping.py -v -s --profile m5stack_core2
+```
+
+Pass conditions:
+- Python receives an ACK payload identical to the sent payload.
+- DUT Serial prints `RAW-RX len=64 crc=<expected>`.
+
+### core2_vban_speaker
+
+Purpose:
+Verify VBAN receive, PCM16 decode, and Core2 speaker output.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_vban_speaker/core2_vban_speaker.py -v -s --profile m5stack_core2
+```
+
+Pass conditions:
+- DUT prints `VBAN-RX rate=16000 channels=1 packets=<n> drops=0`.
+- The operator confirms the 5-second tone and answers `y` to the pytest prompt.
+
+### core2_vban_mic
+
+Purpose:
+Verify that Python can receive Core2 microphone input as VBAN PCM16.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_vban_mic/core2_vban_mic.py -v -s --profile m5stack_core2
+```
+
+Pass conditions:
+- Python receives at least 100 packets in 5 seconds.
+- The frame counter increases monotonically.
+- RMS exceeds the silence threshold at least once.
+- DUT prints `VBAN-TX packets=<n>`.
+
+### core2_vban_receptor
+
+Purpose:
+Verify that VBAN Receptor or Voicemeeter can receive and play Core2 microphone input.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_vban_receptor/core2_vban_receptor.py -v -s --profile m5stack_core2
+```
+
+Pass conditions:
+- DUT keeps printing `VBAN-TX packets=<n> drops=0`.
+- VBAN Receptor / Voicemeeter shows the `Core2Mic` stream.
+- The app meter reacts to input and the PC plays the Core2 microphone audio.
+
+### core2_voicemeeter_to_speaker
+
+Purpose:
+Verify that Core2 receives a VBAN PCM stream from Voicemeeter and plays it through the speaker.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_voicemeeter_to_speaker/core2_voicemeeter_to_speaker.py -v -s --profile m5stack_core2
+```
+
+Pass conditions:
+- DUT prints `VBAN-RX stream=PcToCore2 rate=<rate> channels=<n> packets=<n> drops=0`.
+- The operator hears PC-side audio from the Core2 speaker.
+
+### core2_rtp_speaker
+
+Purpose:
+Verify RTP receive, payload decode, and Core2 speaker output.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_speaker/core2_rtp_speaker.py -v -s --profile m5stack_core2
+```
+
+Pass conditions:
+- DUT prints `RTP-RX packets=<n> drops=0`.
+- The operator confirms the 5-second tone and answers `y` to the pytest prompt.
+
+### core2_rtp_mic
+
+Purpose:
+Verify that Python can receive Core2 microphone input as RTP payloads.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_mic/core2_rtp_mic.py -v -s --profile m5stack_core2
+```
+
+Pass conditions:
+- Python receives at least 100 packets in 5 seconds.
+- Sequence numbers increase monotonically.
+- Timestamp increments match the payload sample count.
+- RMS exceeds the silence threshold at least once.
+
+### core2_rtp_gstreamer
+
+Purpose:
+Verify Core2 playback of RTP/L16 mono sent by GStreamer.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_gstreamer/core2_rtp_gstreamer.py -v -s --profile m5stack_core2
+```
+
+Use the RTP/L16 GStreamer command in [Real-Application Commands](#real-application-commands) to send audio to the DUT.
+
+### core2_rtp_g711_gstreamer
+
+Purpose:
+Verify Core2 G711 decode/playback of RTP/PCMU sent by GStreamer.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_g711_gstreamer/core2_rtp_g711_gstreamer.py -v -s --profile m5stack_core2
+```
+
+Use the RTP/PCMU GStreamer or ffmpeg command in [Real-Application Commands](#real-application-commands) to send audio to the DUT.
+
+### core2_rtp_g722_gstreamer
+
+Purpose:
+Verify Core2 G722 decode/playback of RTP/G.722 sent by GStreamer.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_g722_gstreamer/core2_rtp_g722_gstreamer.py -v -s --profile m5stack_core2
+```
+
+Use the RTP/G.722 GStreamer command in [Real-Application Commands](#real-application-commands) to send audio to the DUT.
+
+### core2_rtp_opus_gstreamer
+
+Purpose:
+Verify DUT Opus decode/playback of RTP/Opus dynamic PT 96 sent by GStreamer.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_rtp_opus_gstreamer/core2_rtp_opus_gstreamer.py -v -s --profile m5stack_core2
+```
+
+Use the RTP/Opus GStreamer command in [Real-Application Commands](#real-application-commands) to send audio to the DUT.
+
+### core2_stability
+
+Purpose:
+Verify that a long-running UDP audio stream does not cause heap leaks, packet drops, or unrecoverable Wi-Fi disconnects.
+
+Run:
+
+```sh
+cd tests
+uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
+```
+
+Short smoke run:
+
+```sh
+cd tests
+CORE2_STABILITY_SECONDS=60 uv run --env-file .env pytest manual/core2_stability/core2_stability.py -v -s --profile m5stack_core2
+```
+
+Pass conditions:
+- No `WIFI_ERROR` appears during the 30-minute run.
+- Drop rate stays below 0.1%.
+- Minimum free heap does not keep falling by more than 10% from the initial value.
+- DUT prints `STABILITY done`.
+
 ## Real-Application Commands
 
 Send RTP/L16 mono from PC to Core2:
