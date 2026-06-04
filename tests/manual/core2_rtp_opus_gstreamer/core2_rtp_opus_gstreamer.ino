@@ -3,6 +3,7 @@
 #include <WiFiUdp.h>
 #include <PCMFlowUDP.h>
 #include <PCMFlowOpus.h>
+#include "../M5SpeakerBufferedPlayer.h"
 
 #ifndef WIFI_SSID
 #define WIFI_SSID ""
@@ -19,22 +20,15 @@ static constexpr uint32_t kSampleRate = 48000;
 static constexpr size_t kMaxPacketBytes = 400;
 static constexpr size_t kPacketFrames = 960; // 20 ms at 48 kHz
 static constexpr size_t kMaxPlayFrames = kPacketFrames * 4;
-static constexpr size_t kAudioBuffers = 3;
 static constexpr unsigned long kStatsIntervalMs = 500;
 
 WiFiUDP g_udp;
 RtpReceiver g_rx(g_udp);
 OpusDecoder g_dec;
+M5SpeakerBufferedPlayer<kMaxPlayFrames> g_player;
 static uint32_t g_packets = 0;
 static uint32_t g_drops = 0;
-static uint32_t g_playWaits = 0;
 static unsigned long g_lastStatsMs = 0;
-static int16_t g_audio[kAudioBuffers][kMaxPlayFrames] = {};
-static size_t g_playFrames = kPacketFrames * 2;
-static size_t g_initialPlayFrames = kPacketFrames * 2;
-static size_t g_audioIndex = 0;
-static size_t g_audioFill = 0;
-static bool g_playStarted = false;
 
 static bool connectWifi(IPAddress &ip)
 {
@@ -93,20 +87,7 @@ static void drawStats(size_t frames)
     M5.Display.print("Heap: ");
     M5.Display.println(ESP.getFreeHeap());
     M5.Display.print("Waits: ");
-    M5.Display.println(g_playWaits);
-}
-
-static void submitAudio(size_t frames)
-{
-    while (!M5.Speaker.playRaw(g_audio[g_audioIndex], frames, kSampleRate, false, 1, 0, false))
-    {
-        if (g_playStarted)
-            ++g_playWaits;
-        delay(1);
-    }
-    g_audioIndex = (g_audioIndex + 1) % kAudioBuffers;
-    g_audioFill = 0;
-    g_playStarted = true;
+    M5.Display.println(g_player.waits());
 }
 
 void setup()
@@ -131,9 +112,12 @@ void setup()
     M5.Speaker.begin();
     M5.Speaker.setVolume(160);
 
-    const RtpReceiver::PcmBufferProfile profile = RtpReceiver::hardwareSpeakerPcmBuffer();
-    g_initialPlayFrames = (kSampleRate * profile.initialPrebufferMs) / 1000u;
-    g_playFrames = (kSampleRate * profile.readChunkMs) / 1000u;
+    if (!g_player.begin({kSampleRate, 1, 16}, M5SpeakerBufferedPlayer<kMaxPlayFrames>::balancedProfile()))
+    {
+        Serial.println("FAIL player-begin");
+        M5.Display.println("Player begin failed");
+        return;
+    }
 
     if (!g_dec.begin({kSampleRate, 1, 16}))
     {
@@ -171,9 +155,8 @@ void loop()
 
     uint8_t packet[kMaxPacketBytes] = {0};
     const size_t bytes = g_rx.readEncoded(packet, sizeof(packet));
-    const size_t targetFrames = g_playStarted ? g_playFrames : g_initialPlayFrames;
-    const size_t room = targetFrames - g_audioFill;
-    int16_t *samples = g_audio[g_audioIndex] + g_audioFill;
+    int16_t *samples = g_player.writableData();
+    const size_t room = g_player.writableFrames();
     const size_t frames = g_dec.decodePacket(packet, bytes, samples, room);
     ++g_packets;
 
@@ -183,9 +166,7 @@ void loop()
     }
     else
     {
-        g_audioFill += frames;
-        if (g_audioFill >= targetFrames)
-            submitAudio(g_audioFill);
+        g_player.commitFrames(frames);
     }
 
     const unsigned long now = millis();
@@ -204,13 +185,13 @@ void loop()
         Serial.print(" frames=");
         Serial.print(frames);
         Serial.print(" fill=");
-        Serial.print(g_audioFill);
+        Serial.print(g_player.fillFrames());
         Serial.print(" packets=");
         Serial.print(g_packets);
         Serial.print(" drops=");
         Serial.print(g_drops);
         Serial.print(" waits=");
-        Serial.print(g_playWaits);
+        Serial.print(g_player.waits());
         Serial.print(" heap=");
         Serial.println(ESP.getFreeHeap());
 
