@@ -33,7 +33,7 @@ def test_core2_rtp_g711_gstreamer(dut):
     )
 
     dut.expect(
-        re.compile(rb"RTP-G711-RX pt=0 seq=\d+ ssrc=\d+ bytes=160 frames=160 packets=\d+ drops=0"),
+        re.compile(rb"RTP-G711-RX pt=0 seq=\d+ ssrc=\d+ bytes=160 frames=160 fill=\d+ packets=\d+ drops=0 waits=\d+"),
         timeout=120,
     )
 

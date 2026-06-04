@@ -33,7 +33,7 @@ def test_core2_rtp_opus_gstreamer(dut):
     )
 
     dut.expect(
-        re.compile(rb"RTP-OPUS-RX pt=96 seq=\d+ ssrc=\d+ bytes=\d+ frames=960 packets=\d+ drops=0 heap=\d+"),
+        re.compile(rb"RTP-OPUS-RX pt=96 seq=\d+ ssrc=\d+ bytes=\d+ frames=960 fill=\d+ packets=\d+ drops=0 waits=\d+ heap=\d+"),
         timeout=120,
     )
 
