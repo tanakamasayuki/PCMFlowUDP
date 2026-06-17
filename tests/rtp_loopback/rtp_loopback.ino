@@ -19,28 +19,50 @@
 static int g_pass = 0;
 static int g_total = 0;
 
-#define EXPECT_TRUE(name, cond) do { \
-    ++g_total; \
-    if (cond) { ++g_pass; Serial.print("PASS "); Serial.println(name); } \
-    else { Serial.print("FAIL "); Serial.print(name); Serial.println(" cond"); } \
-} while (0)
+#define EXPECT_TRUE(name, cond)      \
+    do                               \
+    {                                \
+        ++g_total;                   \
+        if (cond)                    \
+        {                            \
+            ++g_pass;                \
+            Serial.print("PASS ");   \
+            Serial.println(name);    \
+        }                            \
+        else                         \
+        {                            \
+            Serial.print("FAIL ");   \
+            Serial.print(name);      \
+            Serial.println(" cond"); \
+        }                            \
+    } while (0)
 
-#define EXPECT_EQ(name, expected, actual) do { \
-    ++g_total; \
-    const long _e = (long)(expected); \
-    const long _a = (long)(actual); \
-    if (_e == _a) { ++g_pass; Serial.print("PASS "); Serial.println(name); } \
-    else { \
-        Serial.print("FAIL "); Serial.print(name); \
-        Serial.print(" expected="); Serial.print(_e); \
-        Serial.print(" actual=");   Serial.println(_a); \
-    } \
-} while (0)
+#define EXPECT_EQ(name, expected, actual) \
+    do                                    \
+    {                                     \
+        ++g_total;                        \
+        const long _e = (long)(expected); \
+        const long _a = (long)(actual);   \
+        if (_e == _a)                     \
+        {                                 \
+            ++g_pass;                     \
+            Serial.print("PASS ");        \
+            Serial.println(name);         \
+        }                                 \
+        else                              \
+        {                                 \
+            Serial.print("FAIL ");        \
+            Serial.print(name);           \
+            Serial.print(" expected=");   \
+            Serial.print(_e);             \
+            Serial.print(" actual=");     \
+            Serial.println(_a);           \
+        }                                 \
+    } while (0)
 
 static constexpr uint16_t kPort = 47300;
 
-template <typename Recv>
-static bool pumpUntilProgress(Recv &r)
+static bool pumpUntilProgress(RtpReceiver &r)
 {
     for (int i = 0; i < 100; ++i)
     {
@@ -370,13 +392,13 @@ static void test_sequence_and_marker()
         (void)rx.readEncoded(scratch, sizeof(scratch));
     }
 
-    EXPECT_EQ("seq/seq0", (long)seq0,                (long)seqs[0]);
+    EXPECT_EQ("seq/seq0", (long)seq0, (long)seqs[0]);
     EXPECT_EQ("seq/seq1", (long)((seq0 + 1) & 0xFFFF), (long)seqs[1]);
     EXPECT_EQ("seq/seq2", (long)((seq0 + 2) & 0xFFFF), (long)seqs[2]);
-    EXPECT_TRUE("seq/marker0",  marks[0]);
+    EXPECT_TRUE("seq/marker0", marks[0]);
     EXPECT_TRUE("seq/marker1", !marks[1]);
     EXPECT_TRUE("seq/marker2", !marks[2]);
-    EXPECT_EQ("seq/ts0", (long)ts0,         (long)timestamps[0]);
+    EXPECT_EQ("seq/ts0", (long)ts0, (long)timestamps[0]);
     EXPECT_EQ("seq/ts1", (long)(ts0 + 160), (long)timestamps[1]);
     EXPECT_EQ("seq/ts2", (long)(ts0 + 320), (long)timestamps[2]);
 

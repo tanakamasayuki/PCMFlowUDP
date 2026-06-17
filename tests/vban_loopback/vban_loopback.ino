@@ -59,8 +59,7 @@ static int g_total = 0;
 static constexpr uint16_t kPort = 47200;
 
 // Pump the receiver for up to ~500 ms.
-template <typename Recv>
-static bool pumpUntilProgress(Recv &r)
+static bool pumpUntilProgress(VbanReceiver &r)
 {
     for (int i = 0; i < 100; ++i)
     {
