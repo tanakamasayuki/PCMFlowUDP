@@ -5,6 +5,8 @@
 #include <PCMFlowOpus.h>
 #include "../M5SpeakerBufferedPlayer.h"
 
+SET_LOOP_TASK_STACK_SIZE(16 * 1024);
+
 #ifndef WIFI_SSID
 #define WIFI_SSID ""
 #endif
@@ -19,13 +21,15 @@ static constexpr uint8_t kPayloadType = 96;
 static constexpr uint32_t kSampleRate = 48000;
 static constexpr size_t kMaxPacketBytes = 400;
 static constexpr size_t kPacketFrames = 960; // 20 ms at 48 kHz
-static constexpr size_t kMaxPlayFrames = kPacketFrames * 4;
+static constexpr size_t kMaxPlayFrames = kPacketFrames * 8;
 static constexpr unsigned long kStatsIntervalMs = 500;
+using Player = M5SpeakerBufferedPlayer<kMaxPlayFrames>;
 
 WiFiUDP g_udp;
 RtpReceiver g_rx(g_udp);
 OpusDecoder g_dec;
-M5SpeakerBufferedPlayer<kMaxPlayFrames> g_player;
+Player g_player;
+static uint8_t g_packet[kMaxPacketBytes] = {};
 static uint32_t g_packets = 0;
 static uint32_t g_drops = 0;
 static unsigned long g_lastStatsMs = 0;
@@ -66,7 +70,7 @@ static void drawReady(const IPAddress &ip)
     M5.Display.println(ip);
     M5.Display.print("Port: ");
     M5.Display.println(kRxPort);
-    M5.Display.println("Opus PT96 48k");
+    M5.Display.println("Opus PT96 160/80");
 }
 
 static void drawStats(size_t frames)
@@ -88,6 +92,8 @@ static void drawStats(size_t frames)
     M5.Display.println(ESP.getFreeHeap());
     M5.Display.print("Waits: ");
     M5.Display.println(g_player.waits());
+    M5.Display.print("Gaps: ");
+    M5.Display.println(g_player.gapRisks());
 }
 
 void setup()
@@ -112,7 +118,7 @@ void setup()
     M5.Speaker.begin();
     M5.Speaker.setVolume(160);
 
-    if (!g_player.begin({kSampleRate, 1, 16}, M5SpeakerBufferedPlayer<kMaxPlayFrames>::balancedProfile()))
+    if (!g_player.begin({kSampleRate, 1, 16}, {160, 80}))
     {
         Serial.println("FAIL player-begin");
         M5.Display.println("Player begin failed");
@@ -153,11 +159,10 @@ void loop()
         return;
     }
 
-    uint8_t packet[kMaxPacketBytes] = {0};
-    const size_t bytes = g_rx.readEncoded(packet, sizeof(packet));
+    const size_t bytes = g_rx.readEncoded(g_packet, sizeof(g_packet));
     int16_t *samples = g_player.writableData();
     const size_t room = g_player.writableFrames();
-    const size_t frames = g_dec.decodePacket(packet, bytes, samples, room);
+    const size_t frames = g_dec.decodePacket(g_packet, bytes, samples, room);
     ++g_packets;
 
     if (g_rx.payloadType() != kPayloadType || bytes == 0 || frames == 0)
@@ -192,6 +197,10 @@ void loop()
         Serial.print(g_drops);
         Serial.print(" waits=");
         Serial.print(g_player.waits());
+        Serial.print(" chunks=");
+        Serial.print(g_player.chunks());
+        Serial.print(" gaps=");
+        Serial.print(g_player.gapRisks());
         Serial.print(" heap=");
         Serial.println(ESP.getFreeHeap());
 
