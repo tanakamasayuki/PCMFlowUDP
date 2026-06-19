@@ -66,7 +66,7 @@ static void drawReady(const IPAddress &ip)
     M5.Display.println(ip);
     M5.Display.print("Port: ");
     M5.Display.println(kRxPort);
-    M5.Display.println("L16 16k mono PT11");
+    M5.Display.println("L16 16k PT96 stable");
 }
 
 static void drawStats(size_t frames)
@@ -110,7 +110,7 @@ void setup()
     M5.Speaker.begin();
     M5.Speaker.setVolume(160);
 
-    if (!g_player.begin({kSampleRate, 1, 16}, Player::balancedProfile()))
+    if (!g_player.begin({kSampleRate, 1, 16}, Player::stableProfile()))
     {
         Serial.println("FAIL player-begin");
         M5.Display.println("Player begin failed");
