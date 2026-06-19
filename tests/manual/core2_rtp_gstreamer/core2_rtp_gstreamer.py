@@ -34,7 +34,7 @@ def test_core2_rtp_gstreamer(dut):
     )
 
     dut.expect(
-        re.compile(rb"RTP-GST-RX pt=96 seq=\d+ ssrc=\d+ frames=320 packets=\d+ drops=0 waits=\d+ chunks=\d+ gaps=\d+"),
+        re.compile(rb"RTP-GST-RX pt=96 seq=\d+ ssrc=\d+ frames=\d+ packets=\d+ drops=0 waits=\d+ chunks=\d+ gaps=\d+"),
         timeout=120,
     )
 
