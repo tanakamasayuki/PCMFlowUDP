@@ -52,6 +52,7 @@ PCMFlowUDP is the **transport-only member** of the PCMFlow family.
 | [PCMFlowG722](https://github.com/tanakamasayuki/PCMFlowG722) | wideband HD voice codec |
 | [PCMFlowOpus](https://github.com/tanakamasayuki/PCMFlowOpus) | low-bitrate / fullband codec |
 | **PCMFlowUDP** (this lib) | UDP transport (RAW + VBAN + RTP) |
+| [PCMFlowDevice](https://github.com/tanakamasayuki/PCMFlowDevice) | board-specific audio I/O helpers |
 
 Compose a codec sibling with PCMFlowUDP to send compressed audio over UDP. For example, `G711Encoder` bytes → `RtpSender::writeEncoded()` (with payload type set to PCMU) produces a standards-compliant VoIP stream that any SIP softphone can play.
 

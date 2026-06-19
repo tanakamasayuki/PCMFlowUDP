@@ -52,6 +52,7 @@ PCMFlowUDP は PCMFlow ファミリーの **transport 専用メンバー**。
 | [PCMFlowG722](https://github.com/tanakamasayuki/PCMFlowG722) | 広帯域 HD ボイスコーデック |
 | [PCMFlowOpus](https://github.com/tanakamasayuki/PCMFlowOpus) | 低ビットレート / フルバンドコーデック |
 | **PCMFlowUDP** (本ライブラリ) | UDP transport (RAW + VBAN + RTP) |
+| [PCMFlowDevice](https://github.com/tanakamasayuki/PCMFlowDevice) | ボード固有 audio I/O helper |
 
 コーデック兄弟と組み合わせれば圧縮音声を UDP で送れます。例えば `G711Encoder` のバイト列を `RtpSender::writeEncoded()` (payload type PCMU) に渡せば、任意の SIP ソフトフォンが再生できる規格準拠の VoIP ストリームが出ます。
 
