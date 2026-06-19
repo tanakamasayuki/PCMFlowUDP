@@ -55,7 +55,7 @@ PCMFlowUDP は PCMFlow ファミリーの **transport 専用メンバー**。
 
 コーデック兄弟と組み合わせれば圧縮音声を UDP で送れます。例えば `G711Encoder` のバイト列を `RtpSender::writeEncoded()` (payload type PCMU) に渡せば、任意の SIP ソフトフォンが再生できる規格準拠の VoIP ストリームが出ます。
 
-RTP/L16 の受信再生では、`RtpReceiver` が小さな internal PCM ring を持ち、必要に応じて `setPcmBuffer()` で呼び出し側 storage を渡せます。標準 profile として `lowLatencyPcmBuffer()` (40/20 ms)、`hardwareSpeakerPcmBuffer()` (40/40 ms)、`stableSpeakerPcmBuffer()` (80/40 ms) を用意しています。M5Stack Core2 speaker 再生では、現時点の default 候補は `hardwareSpeakerPcmBuffer()` です。
+RTP/L16 の受信再生では、`RtpReceiver` が小さな internal PCM ring を持ち、必要に応じて `setPcmBuffer()` で呼び出し側 storage を渡せます。標準 profile として `lowLatencyPcmBuffer()` (40/20 ms)、`hardwareSpeakerPcmBuffer()` (40/40 ms)、`stableSpeakerPcmBuffer()` (80/40 ms) を用意しています。M5Unified `Speaker.playRaw()` 再生など、device 固有の speaker queue と buffer lifetime 管理は PCMFlowDevice が担当します。
 
 ---
 

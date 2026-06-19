@@ -200,5 +200,5 @@ CORE2_STABILITY_SECONDS=60 uv run --env-file .env pytest manual/core2_stability/
 - スピーカー音、LCD 表示、物理ボタンなどはオペレーター確認にします。
 - オペレーター確認は、具体的な期待結果を表示して `y` / `n` で判定します。
 - 1 つの `.py` には原則 1 つのテスト関数だけを置き、フラッシュ後の状態共有による副作用を避けます。
-- Core2 speaker 系テストは 20 ms packet を受信し、標準で `RtpReceiver::hardwareSpeakerPcmBuffer()` を使います。初回 40 ms プリバッファ後に 40 ms chunk で `M5.Speaker.playRaw()` へ渡します。これは 80 ms の安定性 profile を default にせず、M5Unified speaker queue のアンダーランと buffer 寿命問題を避けるためです。
-- packet jitter の吸収は PCMFlowUDP 側、`playRaw()` の非同期 queue 管理は app/helper 側の責務として扱います。詳細は `SPEC.ja.md` の「受信バッファと遅延の責務」を参照してください。
+- Core2 speaker 系テストは、M5Unified speaker queue と buffer lifetime 管理に `PCMFlowDevice` の `M5SpeakerBufferedPlayer` を使います。
+- packet jitter の吸収は PCMFlowUDP 側、`playRaw()` の非同期出力 buffering は PCMFlowDevice 側の責務として扱います。詳細は `SPEC.ja.md` の「受信バッファと遅延の責務」を参照してください。

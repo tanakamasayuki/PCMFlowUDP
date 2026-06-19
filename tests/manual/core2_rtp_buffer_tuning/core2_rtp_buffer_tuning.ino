@@ -1,6 +1,7 @@
 #include <M5Unified.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <PCMFlowDeviceM5.h>
 #include <PCMFlowUDP.h>
 
 #ifndef WIFI_SSID
@@ -17,10 +18,9 @@ static constexpr uint32_t kSampleRate = 16000;
 static constexpr size_t kPacketFrames = 320;
 static constexpr size_t kMaxPresetPackets = 4;
 static constexpr size_t kMaxPlayFrames = kPacketFrames * kMaxPresetPackets;
-static constexpr size_t kAudioBuffers = 3;
 static constexpr unsigned long kStatsIntervalMs = 5000;
 static constexpr uint8_t kGstreamerL16PayloadType = 96;
-static constexpr uint32_t kGapSlackMs = 5;
+using Player = M5SpeakerBufferedPlayer<kMaxPlayFrames>;
 
 struct Preset
 {
@@ -38,30 +38,16 @@ static constexpr Preset kPresets[] = {
 };
 static constexpr size_t kPresetCount = sizeof(kPresets) / sizeof(kPresets[0]);
 
-enum class RunState : uint8_t
-{
-    Prefilling,
-    Running,
-};
-
 WiFiUDP g_udp;
 RtpReceiver g_rx(g_udp);
+Player g_player;
 static size_t g_presetIndex = 2;
-static RunState g_state = RunState::Prefilling;
 static uint32_t g_packets = 0;
 static uint32_t g_drops = 0;
 static uint32_t g_readEmpty = 0;
-static uint32_t g_playWaits = 0;
-static uint32_t g_gapRisks = 0;
 static uint32_t g_resets = 0;
-static uint32_t g_playChunks = 0;
 static uint32_t g_lastStatsGapRisks = 0;
 static unsigned long g_lastStatsMs = 0;
-static unsigned long g_lastPlayMs = 0;
-static uint32_t g_lastPlayDurationMs = 0;
-static int16_t g_audio[kAudioBuffers][kMaxPlayFrames] = {};
-static size_t g_audioIndex = 0;
-static size_t g_audioFill = 0;
 
 static const Preset &preset()
 {
@@ -70,7 +56,7 @@ static const Preset &preset()
 
 static const char *stateName()
 {
-    return g_state == RunState::Running ? "RUNNING" : "PREFILLING";
+    return g_player.hasStarted() ? "RUNNING" : "PREFILLING";
 }
 
 static size_t initialFrames()
@@ -85,7 +71,7 @@ static size_t chunkFrames()
 
 static size_t targetFrames()
 {
-    return g_state == RunState::Running ? chunkFrames() : initialFrames();
+    return g_player.targetFrames();
 }
 
 static bool connectWifi(IPAddress &ip)
@@ -120,19 +106,14 @@ static void resetForPreset(bool countReset)
     g_rx.setFormat({kSampleRate, 1, 16});
     g_rx.setDynamicL16PayloadType(kGstreamerL16PayloadType, 1);
     g_rx.begin(kRxPort);
+    g_player.begin({kSampleRate, 1, 16},
+                   {static_cast<uint16_t>(preset().initialPackets * 20u),
+                    static_cast<uint16_t>(preset().chunkPackets * 20u)});
 
-    g_state = RunState::Prefilling;
     g_packets = 0;
     g_drops = 0;
     g_readEmpty = 0;
-    g_playWaits = 0;
-    g_gapRisks = 0;
-    g_playChunks = 0;
     g_lastStatsGapRisks = 0;
-    g_lastPlayMs = 0;
-    g_lastPlayDurationMs = 0;
-    g_audioFill = 0;
-    g_audioIndex = 0;
     if (countReset)
         ++g_resets;
 
@@ -180,15 +161,15 @@ static void drawStats()
     M5.Display.print("empty/wait ");
     M5.Display.print(g_readEmpty);
     M5.Display.print("/");
-    M5.Display.println(g_playWaits);
+    M5.Display.println(g_player.waits());
     M5.Display.print("chunks ");
-    M5.Display.println(g_playChunks);
+    M5.Display.println(g_player.chunks());
 }
 
 static void printStats(size_t got)
 {
-    const uint32_t lateDelta = g_gapRisks - g_lastStatsGapRisks;
-    g_lastStatsGapRisks = g_gapRisks;
+    const uint32_t lateDelta = g_player.gapRisks() - g_lastStatsGapRisks;
+    g_lastStatsGapRisks = g_player.gapRisks();
 
     Serial.print("TUNE ");
     Serial.print(" preset=");
@@ -206,11 +187,11 @@ static void printStats(size_t got)
     Serial.print(" empty=");
     Serial.print(g_readEmpty);
     Serial.print(" wait=");
-    Serial.print(g_playWaits);
+    Serial.print(g_player.waits());
     Serial.print(" chunks=");
-    Serial.print(g_playChunks);
+    Serial.print(g_player.chunks());
     Serial.print(" late=");
-    Serial.print(g_gapRisks);
+    Serial.print(g_player.gapRisks());
     Serial.print(" late_delta=");
     Serial.print(lateDelta);
     Serial.print(" resets=");
@@ -233,30 +214,6 @@ static void handleButtons()
     {
         resetForPreset(true);
     }
-}
-
-static void submitAudio(size_t frames)
-{
-    const unsigned long now = millis();
-    if (g_state == RunState::Running && g_lastPlayMs != 0 &&
-        now - g_lastPlayMs > g_lastPlayDurationMs + kGapSlackMs)
-    {
-        ++g_gapRisks;
-    }
-
-    while (!M5.Speaker.playRaw(g_audio[g_audioIndex], frames, kSampleRate, false, 1, 0, false))
-    {
-        if (g_state == RunState::Running)
-            ++g_playWaits;
-        delay(1);
-    }
-
-    g_lastPlayMs = millis();
-    g_lastPlayDurationMs = static_cast<uint32_t>((frames * 1000u) / kSampleRate);
-    ++g_playChunks;
-    g_audioIndex = (g_audioIndex + 1) % kAudioBuffers;
-    g_audioFill = 0;
-    g_state = RunState::Running;
 }
 
 void setup()
@@ -307,22 +264,20 @@ void loop()
     size_t got = 0;
     if (g_rx.poll())
     {
-        int16_t *samples = g_audio[g_audioIndex] + g_audioFill;
-        const size_t room = targetFrames() - g_audioFill;
+        int16_t *samples = g_player.writableData();
+        const size_t room = g_player.writableFrames();
         got = g_rx.readFrames(samples, room);
         ++g_packets;
 
         if (g_rx.payloadType() != kGstreamerL16PayloadType || got == 0)
         {
             ++g_drops;
-            if (g_state == RunState::Running)
+            if (g_player.hasStarted())
                 ++g_readEmpty;
         }
         else
         {
-            g_audioFill += got;
-            if (g_audioFill >= targetFrames())
-                submitAudio(g_audioFill);
+            g_player.commitFrames(got);
         }
     }
 
@@ -330,7 +285,7 @@ void loop()
     if (now - g_lastStatsMs >= kStatsIntervalMs)
     {
         g_lastStatsMs = now;
-        if (g_state == RunState::Running || got != 0 || g_audioFill != 0)
+        if (g_player.hasStarted() || got != 0 || g_player.fillFrames() != 0)
             printStats(got);
         drawStats();
     }

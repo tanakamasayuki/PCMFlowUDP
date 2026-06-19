@@ -1,6 +1,7 @@
 #include <M5Unified.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <PCMFlowDeviceM5.h>
 #include <PCMFlowUDP.h>
 
 #ifndef WIFI_SSID
@@ -15,19 +16,15 @@ static constexpr unsigned long kWifiTimeoutMs = 60000;
 static constexpr uint16_t kRxPort = 49240;
 static constexpr uint32_t kExpectedRate = 16000;
 static constexpr size_t kInitialPlayFrames = (kExpectedRate * 80u) / 1000u;
-static constexpr size_t kPlayFrames = (kExpectedRate * 64u) / 1000u;
-static constexpr size_t kAudioBuffers = 3;
 static constexpr unsigned long kStatsIntervalMs = 500;
+using Player = M5SpeakerBufferedPlayer<kInitialPlayFrames>;
 
 WiFiUDP g_udp;
 VbanReceiver g_rx(g_udp);
+Player g_player;
 static uint32_t g_packets = 0;
 static uint32_t g_drops = 0;
 static unsigned long g_lastStatsMs = 0;
-static int16_t g_audio[kAudioBuffers][kInitialPlayFrames] = {};
-static size_t g_audioIndex = 0;
-static size_t g_audioFill = 0;
-static bool g_playStarted = false;
 static size_t g_lastFrames = 0;
 static int16_t g_lastS0 = 0;
 static int16_t g_lastS1 = 0;
@@ -88,6 +85,8 @@ static void drawStats(uint32_t rate, uint8_t channels, size_t frames)
     M5.Display.println(channels);
     M5.Display.print("Frames: ");
     M5.Display.println(frames);
+    M5.Display.print("Waits: ");
+    M5.Display.println(g_player.waits());
 }
 
 void setup()
@@ -112,6 +111,13 @@ void setup()
     M5.Speaker.begin();
     M5.Speaker.setVolume(160);
 
+    if (!g_player.begin({kExpectedRate, 1, 16}, {80, 64}))
+    {
+        Serial.println("FAIL player-begin");
+        M5.Display.println("Player begin failed");
+        return;
+    }
+
     if (!g_rx.begin(kRxPort))
     {
         Serial.println("FAIL rx-begin");
@@ -127,17 +133,6 @@ void setup()
     Serial.println(kRxPort);
 }
 
-static void submitAudio(size_t frames, uint32_t sampleRate)
-{
-    while (!M5.Speaker.playRaw(g_audio[g_audioIndex], frames, sampleRate, false, 1, 0, false))
-    {
-        delay(1);
-    }
-    g_audioIndex = (g_audioIndex + 1) % kAudioBuffers;
-    g_audioFill = 0;
-    g_playStarted = true;
-}
-
 static void printStats(const PCMFormat &fmt)
 {
     Serial.print("VBAN-RX rate=");
@@ -150,6 +145,12 @@ static void printStats(const PCMFormat &fmt)
     Serial.print(g_packets);
     Serial.print(" drops=");
     Serial.print(g_drops);
+    Serial.print(" waits=");
+    Serial.print(g_player.waits());
+    Serial.print(" chunks=");
+    Serial.print(g_player.chunks());
+    Serial.print(" gaps=");
+    Serial.print(g_player.gapRisks());
     Serial.print(" s0=");
     Serial.print(g_lastS0);
     Serial.print(" s1=");
@@ -174,9 +175,8 @@ void loop()
         }
         else
         {
-            int16_t *samples = g_audio[g_audioIndex] + g_audioFill;
-            const size_t targetFrames = g_playStarted ? kPlayFrames : kInitialPlayFrames;
-            const size_t room = targetFrames - g_audioFill;
+            int16_t *samples = g_player.writableData();
+            const size_t room = g_player.writableFrames();
             got = g_rx.readFrames(samples, room);
             if (got == 0)
             {
@@ -188,9 +188,7 @@ void loop()
                 g_lastS0 = samples[0];
                 g_lastS1 = got > 1 ? samples[1] : 0;
                 g_lastS2 = got > 2 ? samples[2] : 0;
-                g_audioFill += got;
-                if (g_audioFill >= targetFrames)
-                    submitAudio(g_audioFill, fmt.sampleRate);
+                g_player.commitFrames(got);
             }
         }
     }

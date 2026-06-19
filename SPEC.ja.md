@@ -30,17 +30,17 @@ UDP audio では、packet 到着間隔の揺れと出力デバイス側の非同
 |---|---|---|
 | PCMFlow | PCM の生成、変換、codec decode | transport jitter や実機 speaker queue には依存しない |
 | PCMFlowUDP | RTP/VBAN/RAW UDP packet の受信、header 解析、PCMSource / ByteStream への安定供給 | 小さな packet jitter を吸収する設定可能な受信 ring buffer、`availableFrames()`、初期プリバッファ、読み出し chunk 設定を提供する。RAM 制約のため、バッファは小さく保ち、必要なら呼び出し側提供バッファを使う |
-| アプリ / 出力 helper | M5Unified speaker など出力デバイス固有の非同期 queue 管理 | `playRaw()` に渡す buffer の寿命管理、三重 buffer、`playRaw()` が false のときの retry を隠す |
+| PCMFlowDevice / アプリ出力 helper | M5Unified speaker など出力デバイス固有の非同期 queue 管理 | `playRaw()` に渡す buffer の寿命管理、三重 buffer、`playRaw()` が false のときの retry を隠す |
 
 目標遅延は用途別に分ける。
 
 | 用途 | 初期プリバッファ目安 | 通常読み出し chunk | 備考 |
 |---|---:|---:|---|
 | VoIP / 双方向会話 | 20-40 ms | 10-20 ms | 80 ms は会話用途では重い。必要なら adaptive jitter buffer で上限を抑える |
-| LAN 内の実機 speaker 再生 / manual test | 40-80 ms | 20-40 ms | 音切れを避ける安定寄り設定。Core2 manual speaker テストは標準で 40/40 ms の hardware-speaker profile を使う |
+| LAN 内の実機 speaker 再生 / manual test | 40-80 ms | 20-40 ms | 音切れを避ける安定寄り設定。Core2 manual speaker テストは PCMFlowDevice の speaker buffering を使う |
 | BGM / 監視 / 片方向ストリーミング | 80 ms 以上も可 | 40 ms 以上も可 | 低遅延より安定性を優先できる |
 
-デバイス固有 speaker helper では、通常読み出し chunk は出力 API 側の都合にも合わせる。M5Unified `Speaker.playRaw()` + Core2 では、RTP/L16 tuning の結果、RTP 受信 counter が正常 (`drop=0`、`empty=0`、`wait=0`) でも 20 ms 再生 chunk (`p0-low`、`p1-voip`) で聴感上の途切れが出た。したがって現時点の Core2 speaker helper default 候補は、初期 40 ms + 再生 chunk 40 ms の `p2-balanced` とし、初期 80 ms の `p4-stable` は VoIP default ではなく安定性確認用の基準として扱う。
+デバイス固有 speaker helper では、通常読み出し chunk は出力 API 側の都合にも合わせる。M5Unified `Speaker.playRaw()` + Core2 では、RTP/L16 tuning の結果、RTP 受信 counter が正常 (`drop=0`、`empty=0`、`wait=0`) でも 20 ms 再生 chunk (`p0-low`、`p1-voip`) で聴感上の途切れが出た。この speaker 側 buffering policy は PCMFlowDevice が担当し、PCMFlowUDP は transport 受信 buffer の責務に留める。
 
 PCMFlowUDP は packet loss concealment は行わない。sequence 欠落や timestamp 不連続は観測可能にし、無音挿入、補間、codec PLC は呼び出し側または codec 側で扱う。
 
