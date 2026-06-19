@@ -250,7 +250,7 @@ wheels = [
 
 [[package]]
 name = "pytest-embedded-arduino-cli"
-version = "1.2.1"
+version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pytest" },
@@ -258,9 +258,9 @@ dependencies = [
     { name = "pytest-embedded-serial" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/97/7b/c19dfb89687391e39229c8f82fe4ff86a0eb4b4bc69e31eba497a71da297/pytest_embedded_arduino_cli-1.2.1.tar.gz", hash = "sha256:76dae1f71c44330e3c01adf0c876b67b31f048ef1f1dd613a5002877826363b3", size = 121395, upload_time = "2026-06-18T09:23:06.971Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c1/df/4554556d0753de3155fbb02059adab6ee99583ebbdb66d39a4eecadfb3bf/pytest_embedded_arduino_cli-1.2.2.tar.gz", hash = "sha256:356b199ea9e05db6c5d38d7e500edaeccbdc30d63ada9dc31e73662704c07ecd", size = 122370, upload_time = "2026-06-19T01:49:08.917Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bf/45/2eb1bc48c5ba3ac1df347dff010433c443940f83193bd6b8c9fd4a1afec3/pytest_embedded_arduino_cli-1.2.1-py3-none-any.whl", hash = "sha256:d0c7cfea95f10d14e12f7276180cdc497ad4762ee07d126a97d4945e9eb3edb5", size = 30117, upload_time = "2026-06-18T09:23:05.608Z" },
+    { url = "https://files.pythonhosted.org/packages/53/35/39a7993d9cb04de4ea5eb97d4b93eaf3075b701f37a36b110c172876fb52/pytest_embedded_arduino_cli-1.2.2-py3-none-any.whl", hash = "sha256:dcac37eebcfed75ad92e625af54e51ed525ab7703227adb4e93cf2c9311c81ac", size = 30413, upload_time = "2026-06-19T01:49:07.689Z" },
 ]
 
 [[package]]
