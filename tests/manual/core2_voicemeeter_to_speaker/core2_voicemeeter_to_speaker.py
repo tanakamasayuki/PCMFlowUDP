@@ -26,7 +26,7 @@ def test_core2_voicemeeter_to_speaker(dut):
     print("Play a tone or audio file on the PC.")
 
     dut.expect(
-        re.compile(rb"VBAN-RX stream=PcToCore2 rate=16000 channels=1 frames=\d+ packets=\d+ drops=0"),
+        re.compile(rb"VBAN-RX stream=PcToCore2 rate=16000 channels=1 frames=\d+ packets=\d+ drops=0 waits=\d+ chunks=\d+ gaps=\d+"),
         timeout=120,
     )
 

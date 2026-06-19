@@ -82,7 +82,8 @@ def test_core2_vban_speaker(dut):
         rx = dut.expect(
             re.compile(
                 rb"VBAN-RX rate=(\d+) channels=(\d+) frames=(\d+) "
-                rb"packets=(\d+) drops=(\d+) s0=(-?\d+) s1=(-?\d+) s2=(-?\d+)"
+                rb"packets=(\d+) drops=(\d+) waits=\d+ chunks=\d+ gaps=\d+ "
+                rb"s0=(-?\d+) s1=(-?\d+) s2=(-?\d+)"
             ),
             timeout=10,
         )

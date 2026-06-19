@@ -66,7 +66,8 @@ def test_core2_rtp_speaker(dut):
         rx = dut.expect(
             re.compile(
                 rb"RTP-RX pt=(\d+) seq=(\d+) ssrc=(\d+) frames=(\d+) "
-                rb"packets=(\d+) drops=(\d+) s0=(-?\d+) s1=(-?\d+) s2=(-?\d+)"
+                rb"packets=(\d+) drops=(\d+) waits=\d+ chunks=\d+ gaps=\d+ "
+                rb"s0=(-?\d+) s1=(-?\d+) s2=(-?\d+)"
             ),
             timeout=10,
         )
