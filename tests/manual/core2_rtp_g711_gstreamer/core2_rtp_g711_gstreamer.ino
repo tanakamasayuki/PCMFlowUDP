@@ -16,15 +16,19 @@
 static constexpr unsigned long kWifiTimeoutMs = 60000;
 static constexpr uint16_t kRxPort = 5004;
 static constexpr uint32_t kSampleRate = 8000;
-static constexpr size_t kPayloadBytes = 160;
+static constexpr uint32_t kSpeakerRate = 16000;
 static constexpr size_t kPacketFrames = 160;
-static constexpr size_t kMaxPlayFrames = kPacketFrames * 4;
+static constexpr size_t kMaxPacketBytes = pcmflowudp::kRtpMaxPayloadBytes;
+static constexpr size_t kMaxDecodedFrames = kMaxPacketBytes;
+static constexpr size_t kUpsampleRatio = kSpeakerRate / kSampleRate;
+static constexpr size_t kMaxPlayFrames = (kSpeakerRate * 80u) / 1000u;
 static constexpr unsigned long kStatsIntervalMs = 500;
+using Player = M5SpeakerBufferedPlayer<kMaxPlayFrames>;
 
 WiFiUDP g_udp;
 RtpReceiver g_rx(g_udp);
 G711Decoder g_dec;
-M5SpeakerBufferedPlayer<kMaxPlayFrames> g_player;
+Player g_player;
 static uint32_t g_packets = 0;
 static uint32_t g_drops = 0;
 static unsigned long g_lastStatsMs = 0;
@@ -65,7 +69,7 @@ static void drawReady(const IPAddress &ip)
     M5.Display.println(ip);
     M5.Display.print("Port: ");
     M5.Display.println(kRxPort);
-    M5.Display.println("PCMU PT0 8k");
+    M5.Display.println("PCMU PT0 8k->16k");
 }
 
 static void drawStats(size_t frames)
@@ -85,6 +89,8 @@ static void drawStats(size_t frames)
     M5.Display.println(g_drops);
     M5.Display.print("Waits: ");
     M5.Display.println(g_player.waits());
+    M5.Display.print("Gaps: ");
+    M5.Display.println(g_player.gapRisks());
 }
 
 void setup()
@@ -109,7 +115,7 @@ void setup()
     M5.Speaker.begin();
     M5.Speaker.setVolume(160);
 
-    if (!g_player.begin({kSampleRate, 1, 16}, M5SpeakerBufferedPlayer<kMaxPlayFrames>::balancedProfile()))
+    if (!g_player.begin({kSpeakerRate, 1, 16}, Player::stableProfile()))
     {
         Serial.println("FAIL player-begin");
         M5.Display.println("Player begin failed");
@@ -148,11 +154,17 @@ void loop()
         return;
     }
 
-    uint8_t packet[kPayloadBytes] = {0};
+    uint8_t packet[kMaxPacketBytes] = {0};
     const size_t bytes = g_rx.readEncoded(packet, sizeof(packet));
-    int16_t *samples = g_player.writableData();
-    const size_t room = g_player.writableFrames();
-    const size_t frames = g_dec.decode(packet, bytes, samples, room);
+    static int16_t decoded[kMaxDecodedFrames] = {};
+    static int16_t speakerPcm[kMaxDecodedFrames * kUpsampleRatio] = {};
+    const size_t frames = g_dec.decode(packet, bytes, decoded, sizeof(decoded) / sizeof(decoded[0]));
+    size_t speakerFrames = 0;
+    for (size_t i = 0; i < frames; ++i)
+    {
+        for (size_t j = 0; j < kUpsampleRatio; ++j)
+            speakerPcm[speakerFrames++] = decoded[i];
+    }
     ++g_packets;
 
     if (g_rx.payloadType() != static_cast<uint8_t>(pcmflowudp::RtpPayloadType::PCMU) ||
@@ -162,7 +174,9 @@ void loop()
     }
     else
     {
-        g_player.commitFrames(frames);
+        const size_t written = g_player.writeFrames(speakerPcm, speakerFrames);
+        if (written != speakerFrames)
+            ++g_drops;
     }
 
     const unsigned long now = millis();
@@ -180,6 +194,8 @@ void loop()
         Serial.print(bytes);
         Serial.print(" frames=");
         Serial.print(frames);
+        Serial.print(" speaker_frames=");
+        Serial.print(speakerFrames);
         Serial.print(" fill=");
         Serial.print(g_player.fillFrames());
         Serial.print(" packets=");
@@ -187,7 +203,11 @@ void loop()
         Serial.print(" drops=");
         Serial.print(g_drops);
         Serial.print(" waits=");
-        Serial.println(g_player.waits());
+        Serial.print(g_player.waits());
+        Serial.print(" chunks=");
+        Serial.print(g_player.chunks());
+        Serial.print(" gaps=");
+        Serial.println(g_player.gapRisks());
 
         drawStats(frames);
     }

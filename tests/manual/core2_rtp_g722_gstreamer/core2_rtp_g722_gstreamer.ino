@@ -20,11 +20,12 @@ static constexpr size_t kPayloadBytes = 160;
 static constexpr size_t kPacketFrames = 320;
 static constexpr size_t kMaxPlayFrames = kPacketFrames * 4;
 static constexpr unsigned long kStatsIntervalMs = 500;
+using Player = M5SpeakerBufferedPlayer<kMaxPlayFrames>;
 
 WiFiUDP g_udp;
 RtpReceiver g_rx(g_udp);
 G722Decoder g_dec;
-M5SpeakerBufferedPlayer<kMaxPlayFrames> g_player;
+Player g_player;
 static uint32_t g_packets = 0;
 static uint32_t g_drops = 0;
 static unsigned long g_lastStatsMs = 0;
@@ -65,7 +66,7 @@ static void drawReady(const IPAddress &ip)
     M5.Display.println(ip);
     M5.Display.print("Port: ");
     M5.Display.println(kRxPort);
-    M5.Display.println("G722 PT9");
+    M5.Display.println("G722 PT9 stable");
 }
 
 static void drawStats(size_t frames)
@@ -85,6 +86,8 @@ static void drawStats(size_t frames)
     M5.Display.println(g_drops);
     M5.Display.print("Waits: ");
     M5.Display.println(g_player.waits());
+    M5.Display.print("Gaps: ");
+    M5.Display.println(g_player.gapRisks());
 }
 
 void setup()
@@ -109,7 +112,7 @@ void setup()
     M5.Speaker.begin();
     M5.Speaker.setVolume(160);
 
-    if (!g_player.begin({kSampleRate, 1, 16}, M5SpeakerBufferedPlayer<kMaxPlayFrames>::balancedProfile()))
+    if (!g_player.begin({kSampleRate, 1, 16}, Player::stableProfile()))
     {
         Serial.println("FAIL player-begin");
         M5.Display.println("Player begin failed");
@@ -187,7 +190,11 @@ void loop()
         Serial.print(" drops=");
         Serial.print(g_drops);
         Serial.print(" waits=");
-        Serial.println(g_player.waits());
+        Serial.print(g_player.waits());
+        Serial.print(" chunks=");
+        Serial.print(g_player.chunks());
+        Serial.print(" gaps=");
+        Serial.println(g_player.gapRisks());
 
         drawStats(frames);
     }

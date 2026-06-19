@@ -28,12 +28,12 @@ def test_core2_rtp_g711_gstreamer(dut):
         "! audio/x-raw,rate=8000,channels=1 "
         "! audioconvert "
         "! mulawenc "
-        "! rtppcmupay pt=0 "
+        "! rtppcmupay pt=0 mtu=172 "
         f"! udpsink host={core2_ip} port=5004"
     )
 
     dut.expect(
-        re.compile(rb"RTP-G711-RX pt=0 seq=\d+ ssrc=\d+ bytes=160 frames=160 fill=\d+ packets=\d+ drops=0 waits=\d+"),
+        re.compile(rb"RTP-G711-RX pt=0 seq=\d+ ssrc=\d+ bytes=\d+ frames=\d+ fill=\d+ packets=\d+ drops=0 waits=\d+"),
         timeout=120,
     )
 

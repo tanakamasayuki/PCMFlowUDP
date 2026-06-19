@@ -133,7 +133,7 @@ gst-launch-1.0 -v audiotestsrc wave=sine freq=1000 is-live=true \
   ! audio/x-raw,rate=8000,channels=1 \
   ! audioconvert \
   ! mulawenc \
-  ! rtppcmupay pt=0 \
+  ! rtppcmupay pt=0 mtu=172 \
   ! udpsink host=<core2-ip> port=5004
 ```
 
