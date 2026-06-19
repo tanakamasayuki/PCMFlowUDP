@@ -3,7 +3,7 @@
 #include <WiFiUdp.h>
 #include <PCMFlowUDP.h>
 #include <PCMFlowG711.h>
-#include "../M5SpeakerBufferedPlayer.h"
+#include <PCMFlowDeviceM5.h>
 
 #ifndef WIFI_SSID
 #define WIFI_SSID ""

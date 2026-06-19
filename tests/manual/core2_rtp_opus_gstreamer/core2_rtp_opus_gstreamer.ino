@@ -3,7 +3,7 @@
 #include <WiFiUdp.h>
 #include <PCMFlowUDP.h>
 #include <PCMFlowOpus.h>
-#include "../M5SpeakerBufferedPlayer.h"
+#include <PCMFlowDeviceM5.h>
 
 SET_LOOP_TASK_STACK_SIZE(16 * 1024);
 
