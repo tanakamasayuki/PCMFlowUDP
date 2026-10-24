@@ -18,9 +18,9 @@ Use descriptive suffixes so the test output is readable: e.g.
 
 ## How to capture
 
-See the top-level [`TODO.md`](../../../TODO.md) §2 for end-to-end
-instructions (Wireshark + `tshark` extraction, gst-launch command
-lines, recommended sine-wave parameters).
+Use the packet-capture recipe below to save one UDP payload per file.
+Keep the protocol, sample rate and channel count in the filename so the
+interoperability test result can be traced to its source.
 
 Quick recipe:
 

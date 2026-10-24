@@ -1,32 +1,5 @@
-// PCMFlowUDP example: RtpVoipG711
-//
-// Streams microphone audio from an ESP32 to a PC SIP softphone (or
-// gst-launch / Wireshark) as an RTP/PCMU flow, RFC 3550 + RFC 3551 §4.5.14.
-//
-//   8 kHz mono mic → G711Encoder (mu-law) → RtpSender::writeEncoded()
-//
-// The receive direction (PC → ESP32) mirrors:
-//
-//   RtpReceiver::readEncoded() → G711Decoder → PCMFlow → I2S DAC
-//
-// Both directions share one WiFiUDP instance bound to the local port,
-// matching the typical RTP socket convention (one symmetric port per
-// flow).
-//
-// Verify on the PC side with either:
-//
-//   gst-launch-1.0 -v udpsrc port=5004 caps="application/x-rtp,media=audio,\
-//     encoding-name=PCMU,clock-rate=8000,payload=0" ! rtppcmudepay ! \
-//     mulawdec ! audioconvert ! autoaudiosink
-//
-//   ...or any standards-compliant SIP softphone with the SDP offer set
-//   to PCMU on the configured port.
-//
-// TODO: fill in the I2S microphone and speaker code for the target
-// board (M5 mic / INMP441, MAX98357A speaker, etc.). The structure
-// below shows the PCMFlowUDP-facing wiring; the codec wiring requires
-// the sibling library PCMFlowG711 to be installed alongside.
-
+// en: Send and decode G.711 packets over RTP
+// ja: RTPでG.711を送信・受信して復号する
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <PCMFlow.h>
@@ -70,6 +43,8 @@ void setup()
     Serial.print("\nLocal IP: ");
     Serial.println(WiFi.localIP());
 
+    // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+    // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
     if (g_udp.begin(kLocalPort) != 1)
     {
         Serial.println("WiFiUDP.begin failed");
@@ -127,5 +102,7 @@ void loop()
         }
     }
 
+    // en: Advance decoding/conversion, then consume only the available returned PCM frames.
+    // ja: 復号／変換を進め、得られたPCM フレームだけを取り出します。
     g_audio.pump();
 }

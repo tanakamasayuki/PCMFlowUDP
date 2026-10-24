@@ -1,20 +1,5 @@
-// PCMFlowUDP example: VbanMicToPc
-//
-// Headline use case. An ESP32 board with a microphone captures 16 kHz
-// mono audio and streams it to VB-Audio Voicemeeter / VBAN Receptor
-// running on a PC on the same LAN. The PC plays it as if it were a
-// local audio source.
-//
-// PCMFlowUDP implements a subset of the VBAN wire protocol sufficient
-// for this use case; see ../../SPEC.md §6 for the coverage matrix and
-// §14 for the trademark notice. PCMFlowUDP is not affiliated with
-// VB-Audio Software.
-//
-// TODO: fill in the I2S microphone code for the target board (M5 mic,
-// INMP441, etc.). The structure below shows the PCMFlowUDP-facing
-// wiring; the mic source is intentionally left as a placeholder so
-// this sketch is portable to whatever capture hardware is on hand.
-
+// en: Send PCM packets using the VBAN format
+// ja: VBAN形式でPCMのPacketを送信する
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <PCMFlow.h>
@@ -55,6 +40,8 @@ void setup()
     // WiFiUDP opens lazily, but EthernetUDP / WiFiNINA / WiFiS3 /
     // lang-ship:host all require this explicit call — writing it
     // unconditionally keeps the sketch portable across cores.
+    // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+    // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
     if (g_udp.begin(0) != 1)
     {
         Serial.println("WiFiUDP.begin failed");
@@ -84,5 +71,7 @@ void loop()
     for (size_t i = 0; i < kFramesPerChunk; ++i)
         mic[i] = 0;
 
+    // en: Check the number accepted and retain any unconsumed tail; a frame is not a byte.
+    // ja: 受理量を確認し、残りを保持します。フレーム数とByte数は異なります。
     g_sender.writeFrames(mic, kFramesPerChunk);
 }

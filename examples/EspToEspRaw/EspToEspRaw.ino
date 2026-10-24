@@ -1,22 +1,5 @@
-// PCMFlowUDP example: EspToEspRaw
-//
-// Two ESP32 boards on the same LAN exchange raw PCM16 audio over plain
-// UDP. No protocol header on the wire — each UDP datagram is one chunk
-// of PCM samples in host byte order. Lowest overhead, useful for
-// proprietary device-to-device links where you control both ends.
-//
-// The same firmware runs on both boards. Each board:
-//
-//   mic   → RawUdpSink     (peer IP, fixed port)
-//   peer  → RawUdpStream   (this board's port) → PCMFlow → DAC
-//
-// To use, flash this on two boards and set the peer IPs in
-// kPeerIp / kLocalPort accordingly (or use the broadcast IP
-// 255.255.255.255 to skip configuration entirely).
-//
-// TODO: fill in the I2S microphone / speaker bring-up for the target
-// hardware (M5Stack Core2, INMP441 + MAX98357A, etc.).
-
+// en: Exchange raw PCM byte chunks over UDP
+// ja: UDPで生PCMのバイト列を交換する
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <PCMFlow.h>
@@ -56,6 +39,8 @@ void setup()
     // Single shared UDP socket: bound for receive, also used for
     // transmit. Send to broadcast on the same port so both ESP32s
     // hear each other.
+    // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+    // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
     if (g_udp.begin(kPort) != 1)
     {
         Serial.println("WiFiUDP.begin failed");

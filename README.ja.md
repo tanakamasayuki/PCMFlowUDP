@@ -12,6 +12,8 @@
 
 ---
 
+初めて使う場合は[サンプル入門ガイド](docs/GUIDE_EXAMPLES.ja.md)と[各例の日英README](examples/README.ja.md)を参照してください。準備、APIの流れ、確認方法、組み込み時の注意を説明しています。
+
 ## 構成要素
 
 | クラス | 方向 | キャリア | PCMFlow インターフェース |
